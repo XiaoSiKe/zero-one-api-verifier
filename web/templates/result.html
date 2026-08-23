@@ -4,21 +4,21 @@
    report's domain, score, verdict, pass/fail counts. Each /r/{id} becomes
    its own indexable landing page for "what does relay X look like" queries.
    Falls back to generic strings if seo_* values missing (legacy reports). #}
-{% block title %}{{ seo_title or '检测结果 · Veridrop' }}{% endblock %}
+{% block title %}{{ seo_title or '检测结果 · 零一智鉴' }}{% endblock %}
 {% block description %}{{ seo_description or 'AI API 中转站检测报告' }}{% endblock %}
-{% block og_title %}{{ seo_title or '中转站检测报告 · Veridrop' }}{% endblock %}
+{% block og_title %}{{ seo_title or '中转站检测报告 · 零一智鉴' }}{% endblock %}
 {% block og_description %}{{ seo_og_description or seo_description or 'AI API 中转站检测报告' }}{% endblock %}
-{% block canonical %}https://veridrop.org/r/{{ job_id }}{% endblock %}
-{% block og_url %}https://veridrop.org/r/{{ job_id }}{% endblock %}
+{% block canonical %}https://01yapi.cc/r/{{ job_id }}{% endblock %}
+{% block og_url %}https://01yapi.cc/r/{{ job_id }}{% endblock %}
 {# 微信 / 推特 / Reddit / Discord 分享时显示报告卡片 — JPG 由 /r/{id}.jpg
    按需渲染,1400×1000,内含分数、verdict、扣分项摘要。 #}
 {% block og_image %}
-  <meta property="og:image" content="https://veridrop.org/r/{{ job_id }}.jpg" />
+  <meta property="og:image" content="https://01yapi.cc/r/{{ job_id }}.jpg" />
   <meta property="og:image:width" content="1400" />
   <meta property="og:image:height" content="1000" />
   <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:image:alt" content="{{ seo_og_description or 'Veridrop 中转站检测报告' }}" />
-  <meta name="twitter:image" content="https://veridrop.org/r/{{ job_id }}.jpg" />
+  <meta property="og:image:alt" content="{{ seo_og_description or '零一智鉴中转站检测报告' }}" />
+  <meta name="twitter:image" content="https://01yapi.cc/r/{{ job_id }}.jpg" />
 {% endblock %}
 
 {% block content %}
@@ -74,10 +74,10 @@
     </p>
   </div>
   <div class="result-actions">
-    <a class="btn btn-ghost" href="/r/{{ job_id }}.jpg" download="veridrop-{{ job_id }}.jpg">
+    <a class="btn btn-ghost" href="/r/{{ job_id }}.jpg" download="zero-one-api-report-{{ job_id }}.jpg">
       下载 JPG
     </a>
-    <button class="btn btn-ghost" id="share-btn" type="button">分享</button>
+    <button class="btn btn-ghost" id="share-btn" type="button" aria-live="polite">分享</button>
   </div>
 </section>
 
@@ -103,7 +103,7 @@
         <div class="score-caption">{{ caption }}</div>
       </div>
     </div>
-    <p class="muted small attribution">由 https://veridrop.org 生成</p>
+    <p class="muted small attribution">由 https://01yapi.cc 生成</p>
   </div>
 
   <div class="result-right">

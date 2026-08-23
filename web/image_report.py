@@ -329,7 +329,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # share/brand pill in top-right
     pill_font = _load_font(18)
-    pill_text = "veridrop.org"
+    pill_text = "01yapi.cc"
     pb = d.textbbox((0, 0), pill_text, font=pill_font)
     pw = pb[2] - pb[0]
     pill_x = W - 60 - pw - 32
@@ -386,7 +386,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # 报告来源
     attr_font = _load_font(14)
-    attr_text = "由 veridrop.org 生成"
+    attr_text = "由 01yapi.cc 生成"
     ab = d.textbbox((0, 0), attr_text, font=attr_font)
     aw = ab[2] - ab[0]
     d.text(

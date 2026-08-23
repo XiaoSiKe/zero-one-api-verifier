@@ -6,13 +6,13 @@
 {% set ranked = relay.is_ranked %}
 {% set verdict_label = '优秀' if median >= 85 else ('通过' if median >= 70 else ('存在风险' if median >= 50 else '未达标')) %}
 
-{% block title %}{{ domain }} 中转站怎么样?{{ count }} 次实测,中位 {{ "%.0f"|format(median) }}/100 · {{ verdict_label }} | Veridrop{% endblock %}
-{% block description %}{{ domain }} 中转站的真实质量评测:基于 Veridrop {{ count }} 份独立检测报告聚合,中位分 {{ "%.0f"|format(median) }}/100,判定「{{ verdict_label }}」。覆盖协议:{{ relay.protocols_label }}。详情含每份报告时间、模型、扣分项与原始检测链接。{% endblock %}
+{% block title %}{{ domain }} 中转站怎么样?{{ count }} 次实测,中位 {{ "%.0f"|format(median) }}/100 · {{ verdict_label }} | 零一智鉴{% endblock %}
+{% block description %}{{ domain }} 中转站的真实质量评测:基于零一智鉴的 {{ count }} 份独立检测报告聚合,中位分 {{ "%.0f"|format(median) }}/100,判定「{{ verdict_label }}」。覆盖协议:{{ relay.protocols_label }}。详情含每份报告时间、模型、扣分项与原始检测链接。{% endblock %}
 {% block og_title %}{{ domain }} 是真 Claude / GPT / Gemini 吗?{{ "%.0f"|format(median) }}/100{% endblock %}
-{% block og_description %}{{ count }} 份 Veridrop 公开检测报告聚合,识别中转站协议合规、能力剥离、字段伪造。点击查看每份原始报告。{% endblock %}
+{% block og_description %}{{ count }} 份零一智鉴公开检测报告聚合,识别中转站协议合规、能力剥离、字段伪造。点击查看每份原始报告。{% endblock %}
 
-{% block canonical %}https://veridrop.org/leaderboard/{{ domain }}{% endblock %}
-{% block og_url %}https://veridrop.org/leaderboard/{{ domain }}{% endblock %}
+{% block canonical %}https://01yapi.cc/leaderboard/{{ domain }}{% endblock %}
+{% block og_url %}https://01yapi.cc/leaderboard/{{ domain }}{% endblock %}
 
 {% block head_extra %}
 <script type="application/ld+json">
@@ -20,9 +20,9 @@
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "首页", "item": "https://veridrop.org/"},
-    {"@type": "ListItem", "position": 2, "name": "中转站红黑榜", "item": "https://veridrop.org/leaderboard"},
-    {"@type": "ListItem", "position": 3, "name": "{{ domain }}", "item": "https://veridrop.org/leaderboard/{{ domain }}"}
+    {"@type": "ListItem", "position": 1, "name": "首页", "item": "https://01yapi.cc/"},
+    {"@type": "ListItem", "position": 2, "name": "中转站红黑榜", "item": "https://01yapi.cc/leaderboard"},
+    {"@type": "ListItem", "position": 3, "name": "{{ domain }}", "item": "https://01yapi.cc/leaderboard/{{ domain }}"}
   ]
 }
 </script>
@@ -31,9 +31,9 @@
   "@context": "https://schema.org",
   "@type": "Article",
   "headline": "{{ domain }} 中转站质量实测 · 中位 {{ "%.0f"|format(median) }}/100",
-  "description": "{{ domain }} 基于 {{ count }} 份 Veridrop 独立检测报告的聚合评分,判定「{{ verdict_label }}」",
-  "url": "https://veridrop.org/leaderboard/{{ domain }}",
-  "publisher": {"@type": "Organization", "name": "Veridrop", "url": "https://veridrop.org"},
+  "description": "{{ domain }} 基于 {{ count }} 份零一智鉴独立检测报告的聚合评分,判定「{{ verdict_label }}」",
+  "url": "https://01yapi.cc/leaderboard/{{ domain }}",
+  "publisher": {"@type": "Organization", "name": "零一智鉴", "url": "https://01yapi.cc"},
   "inLanguage": "zh-CN",
   "isAccessibleForFree": true{% if relay.last_checked %},
   "dateModified": "{{ relay.last_checked.strftime('%Y-%m-%d') }}"{% endif %}
@@ -53,7 +53,7 @@
 <section class="hub-hero">
   <h1>{{ domain }} 中转站怎么样?</h1>
   <p class="answer-capsule">
-    <strong>{{ domain }}</strong> 在 Veridrop 上累计 <strong>{{ count }}</strong> 次独立检测,
+    <strong>{{ domain }}</strong> 在零一智鉴上累计 <strong>{{ count }}</strong> 次独立检测,
     中位分 <strong>{{ "%.0f"|format(median) }}/100</strong>,判定<strong>「{{ verdict_label }}」</strong>。
     覆盖协议:<strong>{{ relay.protocols_label }}</strong>。
     {% if not ranked %}
@@ -149,7 +149,7 @@
 <section class="hub-note">
   <h2>想自己测一下 {{ domain }}?</h2>
   <p>
-    Veridrop 完全免费,无需注册,API key 不落盘。选对应协议页面填入 base_url 和 key
+    零一智鉴完全免费,无需注册,API key 不落盘。选对应协议页面填入 base_url 和 key
     即可在 30–75 秒内拿到独立的检测报告并自动汇入此榜:
     <a href="/claude">Claude 检测</a> ·
     <a href="/openai">OpenAI 检测</a> ·
@@ -160,7 +160,7 @@
 <section class="hub-note">
   <h2>这页数据怎么来的?</h2>
   <p>
-    本页所有数据来自社区在 Veridrop 上对 <strong>{{ domain }}</strong> 进行的
+    本页所有数据来自社区在零一智鉴上对 <strong>{{ domain }}</strong> 进行的
     <strong>{{ count }}</strong> 次公开检测。每份原始报告永久保存在
     <code>/r/{job_id}</code> 路径,可随时点击核对。中位分用于排名(避免极端值干扰),
     最近一次 verdict 决定每个协议的颜色徽章。<a href="/leaderboard">回到完整红黑榜 →</a>

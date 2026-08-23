@@ -32,7 +32,7 @@ STATIC_DIR = HERE / "static"
 logger = logging.getLogger("veridrop")
 logger.setLevel(logging.INFO)
 
-app = FastAPI(title="Veridrop", docs_url=None, redoc_url=None)
+app = FastAPI(title="ZeroOne · API Verification Platform", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 
@@ -553,7 +553,7 @@ async def result_jpg(job_id: str) -> Response:
         content=cache_path.read_bytes(),
         media_type="image/jpeg",
         headers={
-            "Content-Disposition": f'inline; filename="veridrop-{job_id}.jpg"',
+            "Content-Disposition": f'inline; filename="zero-one-api-report-{job_id}.jpg"',
             "Cache-Control": "public, max-age=86400",
         },
     )
@@ -597,17 +597,17 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     if model:
         title = (
             f"{domain} {proto_label} 中转站 {model} 检测:"
-            f"{score:.0f}/100 {verdict_zh} | Veridrop"
+            f"{score:.0f}/100 {verdict_zh} | 零一智鉴"
         )
     else:
         title = (
-            f"{domain} {proto_label} 中转站检测:{score:.0f}/100 {verdict_zh} | Veridrop"
+            f"{domain} {proto_label} 中转站检测:{score:.0f}/100 {verdict_zh} | 零一智鉴"
         )
     description = (
         f"对 {domain} 进行 {proto_label} 中转站检测的完整报告:"
         f"模型 {model},总分 {score:.0f}/100,判定为「{verdict_zh}」。"
         f"{total} 项检测中 {pass_count} 项通过、{fail_count} 项未通过。"
-        f"Veridrop 字段级穿透,识别中转站真伪与质量。"
+        f"零一智鉴字段级穿透,识别中转站真伪与质量。"
     )
     og_description = (
         f"{domain} 检测报告:{score:.0f}/100 {verdict_zh}({pass_count}/{total} 项通过)"
@@ -679,12 +679,12 @@ async def llms_txt() -> Response:
 # its content changes whenever a new report lands, so we override its
 # lastmod with the most recent report timestamp.
 _STATIC_SITEMAP_URLS = [
-    ("https://veridrop.org/",            "weekly",  "1.0",  "hub.html"),
-    ("https://veridrop.org/claude",      "weekly",  "0.9",  "index.html"),
-    ("https://veridrop.org/openai",      "weekly",  "0.9",  "openai.html"),
-    ("https://veridrop.org/gemini",      "weekly",  "0.9",  "gemini.html"),
-    ("https://veridrop.org/leaderboard", "daily",   "0.85", "leaderboard.html"),
-    ("https://veridrop.org/faq",         "monthly", "0.8",  "faq.html"),
+    ("https://01yapi.cc/",            "weekly",  "1.0",  "hub.html"),
+    ("https://01yapi.cc/claude",      "weekly",  "0.9",  "index.html"),
+    ("https://01yapi.cc/openai",      "weekly",  "0.9",  "openai.html"),
+    ("https://01yapi.cc/gemini",      "weekly",  "0.9",  "gemini.html"),
+    ("https://01yapi.cc/leaderboard", "daily",   "0.85", "leaderboard.html"),
+    ("https://01yapi.cc/faq",         "monthly", "0.8",  "faq.html"),
 ]
 
 _SITEMAP_REPORT_DIRS = [
@@ -753,7 +753,7 @@ async def sitemap_xml() -> Response:
             except OSError:
                 continue
             lines.append(
-                f"  <url><loc>https://veridrop.org/r/{job_id}</loc>"
+                f"  <url><loc>https://01yapi.cc/r/{job_id}</loc>"
                 f"<lastmod>{lastmod}</lastmod>"
                 f"<changefreq>monthly</changefreq>"
                 f"<priority>0.6</priority></url>"
@@ -765,7 +765,7 @@ async def sitemap_xml() -> Response:
     for r in relays:
         if not leaderboard.is_valid_domain(r.domain):
             continue
-        line = f"  <url><loc>https://veridrop.org/leaderboard/{r.domain}</loc>"
+        line = f"  <url><loc>https://01yapi.cc/leaderboard/{r.domain}</loc>"
         if r.last_checked:
             line += f"<lastmod>{r.last_checked.strftime('%Y-%m-%d')}</lastmod>"
         line += "<changefreq>weekly</changefreq><priority>0.75</priority></url>"

@@ -1,4 +1,4 @@
-# Veridrop robots.txt — SEO + AI crawler policy
+# 零一智鉴 robots.txt — SEO + AI crawler policy
 # See SEO_AI_GEO_PLAN §3.1.A
 
 User-agent: *
@@ -50,4 +50,4 @@ Allow: /
 User-agent: Amazonbot
 Allow: /
 
-Sitemap: https://veridrop.org/sitemap.xml
+Sitemap: https://01yapi.cc/sitemap.xml

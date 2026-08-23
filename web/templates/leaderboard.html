@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}AI API 中转站红黑榜 · 真实检测数据排行 | Veridrop{% endblock %}
+{% block title %}AI API 中转站红黑榜 · 真实检测数据排行 | 零一智鉴{% endblock %}
 {% block description %}基于 {{ summary.total_reports }} 份社区公开检测数据,按贝叶斯加权排名 {{ summary.total_relays }} 家 AI API 中转站。Top 10 主榜显示长期稳定测试的高分中转站,识破假冒 Claude / GPT / Gemini 中转站。{% endblock %}
 {% block og_title %}AI API 中转站红黑榜 · {{ summary.total_relays }} 家中转站真实评分{% endblock %}
 {% block og_description %}{{ summary.total_reports }} 份社区检测数据自动聚合,按贝叶斯加权排行。免费查阅,数据真实。{% endblock %}
-{% block canonical %}https://veridrop.org/leaderboard{% if page > 1 %}?page={{ page }}{% endif %}{% endblock %}
-{% block og_url %}https://veridrop.org/leaderboard{% if page > 1 %}?page={{ page }}{% endif %}{% endblock %}
+{% block canonical %}https://01yapi.cc/leaderboard{% if page > 1 %}?page={{ page }}{% endif %}{% endblock %}
+{% block og_url %}https://01yapi.cc/leaderboard{% if page > 1 %}?page={{ page }}{% endif %}{% endblock %}
 
 {% block head_extra %}
 <script type="application/ld+json">
@@ -14,8 +14,8 @@
   "@type": "Article",
   "headline": "AI API 中转站红黑榜 · {{ summary.total_relays }} 家中转站真实检测排行",
   "description": "基于 {{ summary.total_reports }} 份公开检测报告聚合的 AI API 中转站质量排行榜",
-  "url": "https://veridrop.org/leaderboard",
-  "publisher": {"@type": "Organization", "name": "Veridrop", "url": "https://veridrop.org"},
+  "url": "https://01yapi.cc/leaderboard",
+  "publisher": {"@type": "Organization", "name": "零一智鉴", "url": "https://01yapi.cc"},
   "inLanguage": "zh-CN",
   "isAccessibleForFree": true
 }
@@ -33,7 +33,7 @@
       "@type": "ListItem",
       "position": {{ loop.index }},
       "name": "{{ r.domain }}",
-      "url": "https://veridrop.org/leaderboard/{{ r.domain }}"
+      "url": "https://01yapi.cc/leaderboard/{{ r.domain }}"
     }{% if not loop.last %},{% endif %}
     {%- endfor %}
   ]
@@ -104,7 +104,7 @@
 <section class="hub-hero">
   <h1>AI API 中转站红黑榜</h1>
   <p class="answer-capsule">
-    <strong>Veridrop</strong> 基于社区公开检测数据自动聚合,按
+    <strong>零一智鉴</strong>基于社区公开检测数据自动聚合,按
     <strong>贝叶斯加权评分</strong>排行 AI API 中转站质量(测试越多 + 分数越稳定 → 排名越前)。
     数据来自 <strong>{{ summary.total_reports }}</strong> 份公开检测报告,共覆盖
     <strong>{{ summary.total_relays }}</strong> 家中转站
