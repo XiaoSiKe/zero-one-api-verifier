@@ -1,4 +1,17 @@
-# Veridrop · AI API 中转站真伪检测 / Claude · OpenAI · Gemini 中转站真假鉴定工具
+# ZeroOne · API Verification Platform
+
+**零一智鉴 · API 真测平台**<br>
+从零到一，让每一个 API 接口有据可鉴！<br>
+正式域名：[01yapi.cc](https://01yapi.cc)
+
+> **二开状态（2026-08-24）**：本仓库已从
+> [canarybyte/veridrop](https://github.com/canarybyte/veridrop) Fork，当前先完成
+> [UI 设计规范](docs/UI_DESIGN_SPEC.md) 与
+> [UI 二开 PRD](docs/PRD_ZEROONE_UI_REBRAND.md)。UI 尚未按新规范实施；现有运行代码仍保持
+> 上游基线行为。后续只改品牌与 UI，检测核心、官方基线、评分、报告、异步任务、排行榜算法
+> 和 API 契约保持不变。本项目继续遵循 AGPL-3.0-or-later，并保留上游归属。
+
+## 上游项目基线：Veridrop · AI API 中转站真伪检测
 
 ## What is Veridrop? (English)
 
