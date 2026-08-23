@@ -63,7 +63,8 @@
 
 - `web/templates/**`
 - `web/static/style.css`
-- `web/static/favicon.svg`
+- `web/static/zero-one-logo.png`
+- `docs/assets/zero-one-logo-source.png`
 - 后续新增的零一智鉴 Logo、品牌插画、字体声明和静态视觉资源
 
 其中包括但不限于：
@@ -162,7 +163,8 @@ git merge --no-commit --no-ff upstream/main
 git restore --source=pre-upstream-sync-2026-08-24 -- \
   web/templates \
   web/static/style.css \
-  web/static/favicon.svg
+  web/static/zero-one-logo.png \
+  docs/assets/zero-one-logo-source.png
 ```
 
 不得使用仓库根目录、通配根路径或不明确的环境变量作为恢复目标。
@@ -215,7 +217,8 @@ git restore --source=pre-upstream-sync-2026-08-24 -- \
 git diff --exit-code pre-upstream-sync-2026-08-24 -- \
   web/templates \
   web/static/style.css \
-  web/static/favicon.svg
+  web/static/zero-one-logo.png \
+  docs/assets/zero-one-logo-source.png
 ```
 
 如果有差异，说明二开 UI 仍可能被同步覆盖，必须停止并处理。

@@ -41,12 +41,12 @@ def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
     return ImageFont.load_default()
 
 
-# Color palette — green-on-white for "pass", neutral grey for body text,
-# warning amber / red for non-pass cases.
-_GREEN = (16, 185, 129)
-_GREEN_DARK = (5, 150, 105)
-_RED = (239, 68, 68)
-_AMBER = (245, 158, 11)
+# Status palette — blue for pass, indigo for good, purple for warning,
+# and deep violet for failure. Text and icons remain the primary semantics.
+_PASS_BLUE = (37, 99, 235)
+_GOOD_INDIGO = (79, 70, 229)
+_WARN_PURPLE = (124, 58, 237)
+_FAIL_VIOLET = (107, 33, 168)
 _TEXT = (17, 24, 39)
 _MUTED = (107, 114, 128)
 _LINE = (229, 231, 235)
@@ -92,24 +92,24 @@ _DETECTOR_LABELS = {
 
 def _status_label(status: str, score: float) -> tuple[str, tuple[int, int, int]]:
     if status == "pass":
-        return "通过", _GREEN
+        return "通过", _PASS_BLUE
     if status == "skip":
         return "跳过", _MUTED
     if status == "error":
-        return "异常", _RED
+        return "异常", _FAIL_VIOLET
     if score >= 70:
-        return "警告", _AMBER
-    return "未通过", _RED
+        return "警告", _WARN_PURPLE
+    return "未通过", _FAIL_VIOLET
 
 
 def _verdict_color(score: float, verdict: str) -> tuple[int, int, int]:
     if verdict == "passed" and score >= 85:
-        return _GREEN
+        return _PASS_BLUE
     if verdict == "passed":
-        return _GREEN_DARK
+        return _GOOD_INDIGO
     if verdict == "marginal":
-        return _AMBER
-    return _RED
+        return _WARN_PURPLE
+    return _FAIL_VIOLET
 
 
 def _verdict_caption(score: float, verdict: str, protocol: str = "anthropic") -> str:
@@ -196,7 +196,7 @@ def _draw_metric_tile(d: ImageDraw.ImageDraw, x: int, y: int, w: int, h: int,
                       label: str, value: str,
                       highlight: bool = False) -> None:
     """One of the four bottom metric boxes."""
-    border = _RED if highlight else _LINE
+    border = _FAIL_VIOLET if highlight else _LINE
     d.rounded_rectangle(
         (x, y, x + w, y + h),
         radius=8,
@@ -466,14 +466,14 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         d.rounded_rectangle(
             (rows_x, note_y, rows_x + rows_w, note_y + 54),
             radius=8,
-            fill=(255, 251, 235),
-            outline=(253, 230, 138),
+            fill=(245, 243, 255),
+            outline=(221, 214, 254),
             width=1,
         )
         d.text(
             (rows_x + 18, note_y + 16),
             note[:64],
-            fill=(146, 64, 14),
+            fill=(91, 33, 182),
             font=note_font,
         )
 

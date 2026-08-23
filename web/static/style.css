@@ -27,12 +27,23 @@
   --accent-soft: rgba(10, 10, 10, 0.04);
   --focus-ring: var(--neutral-950);
 
-  /* Status only — never used as the brand accent. */
-  --green: #137a45;
-  --green-dark: #0f6338;
-  --green-soft: #eaf4ee;
-  --red: #b42318;
-  --amber: #955700;
+  /* Status only — cool-spectrum palette, never used as the brand accent. */
+  --status-pass: #2563eb;
+  --status-pass-strong: #1d4ed8;
+  --status-pass-soft: #eff6ff;
+  --status-pass-border: #bfdbfe;
+  --status-good: #4f46e5;
+  --status-good-strong: #3730a3;
+  --status-good-soft: #eef2ff;
+  --status-good-border: #c7d2fe;
+  --status-warn: #7c3aed;
+  --status-warn-strong: #5b21b6;
+  --status-warn-soft: #f5f3ff;
+  --status-warn-border: #ddd6fe;
+  --status-fail: #6b21a8;
+  --status-fail-strong: #581c87;
+  --status-fail-soft: #faf5ff;
+  --status-fail-border: #e9d5ff;
 
   /* Component */
   --button-height: 44px;
@@ -126,7 +137,20 @@ code {
   min-height: var(--button-height);
 }
 .brand:hover { text-decoration: none; }
-.brand-mark { display: block; flex: 0 0 auto; }
+.brand-mark {
+  display: block;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--neutral-950);
+}
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 /* Desktop / tablet: nav inline next to brand, left-grouped (NOT pushed to
    the right). Standard SaaS navbar layout — feels balanced because the
@@ -578,12 +602,12 @@ code {
   white-space: nowrap;
 }
 .tier-crypto {
-  color: #047857;
-  background: var(--green-soft);
+  color: var(--status-pass-strong);
+  background: var(--status-pass-soft);
 }
 .tier-behavioral {
-  color: #92400e;
-  background: #fef3c7;
+  color: var(--status-warn-strong);
+  background: var(--status-warn-soft);
 }
 .tier-protocol {
   color: #374151;
@@ -831,10 +855,10 @@ code {
 .lb-proto-score { font-weight: 700; font-variant-numeric: tabular-nums; }
 .lb-proto-verdict { font-size: 11.5px; opacity: 0.85; }
 .lb-proto-count { font-size: 11px; opacity: 0.7; }
-.lb-proto-ok    { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
-.lb-proto-good  { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
-.lb-proto-warn  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
-.lb-proto-fail  { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.lb-proto-ok    { background: var(--status-pass-soft); border-color: var(--status-pass-border); color: var(--status-pass-strong); }
+.lb-proto-good  { background: var(--status-good-soft); border-color: var(--status-good-border); color: var(--status-good-strong); }
+.lb-proto-warn  { background: var(--status-warn-soft); border-color: var(--status-warn-border); color: var(--status-warn-strong); }
+.lb-proto-fail  { background: var(--status-fail-soft); border-color: var(--status-fail-border); color: var(--status-fail-strong); }
 .lb-issues {
   font-size: 12px;
   color: var(--muted);
@@ -868,10 +892,10 @@ code {
   margin-top: 4px;
   letter-spacing: 0.05em;
 }
-.lb-score-ok    { background: var(--green-soft); color: var(--green-dark); }
-.lb-score-good  { background: #f0fdf4; color: #166534; }
-.lb-score-warn  { background: #fffbeb; color: #92400e; }
-.lb-score-fail  { background: #fef2f2; color: #991b1b; }
+.lb-score-ok    { background: var(--status-pass-soft); color: var(--status-pass-strong); }
+.lb-score-good  { background: var(--status-good-soft); color: var(--status-good-strong); }
+.lb-score-warn  { background: var(--status-warn-soft); color: var(--status-warn-strong); }
+.lb-score-fail  { background: var(--status-fail-soft); color: var(--status-fail-strong); }
 
 /* leaderboard list — domain link + detail entry */
 .lb-domain a {
@@ -1052,10 +1076,10 @@ code {
   font-weight: 700;
   text-align: center;
 }
-.lb-history-score-ok    { background: #ecfdf5; color: #065f46; }
-.lb-history-score-good  { background: #f0fdf4; color: #166534; }
-.lb-history-score-warn  { background: #fffbeb; color: #92400e; }
-.lb-history-score-fail  { background: #fef2f2; color: #991b1b; }
+.lb-history-score-ok    { background: var(--status-pass-soft); color: var(--status-pass-strong); }
+.lb-history-score-good  { background: var(--status-good-soft); color: var(--status-good-strong); }
+.lb-history-score-warn  { background: var(--status-warn-soft); color: var(--status-warn-strong); }
+.lb-history-score-fail  { background: var(--status-fail-soft); color: var(--status-fail-strong); }
 
 /* Leaderboard section headers — separate Top 10 from全部列表. */
 .lb-section-heading {
@@ -1159,7 +1183,7 @@ code {
   max-width: 220px;
 }
 .form-success {
-  color: var(--green-dark);
+  color: var(--status-pass-strong);
   font-size: 14px;
   margin: 12px 0 0;
 }
@@ -1256,7 +1280,7 @@ code {
 .btn-ghost { background: var(--bg); }
 
 .form-error {
-  color: var(--red);
+  color: var(--status-fail);
   font-size: 14px;
   margin: 12px 0 0;
 }
@@ -1264,14 +1288,14 @@ code {
    Renders the inline "switch to recommended" + "force submit" actions
    instead of just text. */
 .form-error.form-error-rich {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: var(--status-fail-soft);
+  border: 1px solid var(--status-fail-border);
   border-radius: 8px;
   padding: 14px 16px;
-  color: #991b1b;
+  color: var(--status-fail-strong);
 }
 .form-error-title { font-weight: 600; margin-bottom: 4px; }
-.form-error-body { font-size: 13px; color: #7f1d1d; word-break: break-word; }
+.form-error-body { font-size: 13px; color: var(--status-fail-strong); word-break: break-word; }
 .form-error-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .form-error-actions .btn { font-size: 13px; padding: 7px 14px; }
 
@@ -1331,10 +1355,10 @@ code {
   display: flex; align-items: center; justify-content: center;
   position: relative;
 }
-.score-ok      { background: var(--green); }
-.score-ok-dim  { background: var(--green-dark); }
-.score-warn    { background: var(--amber); }
-.score-fail    { background: var(--red); }
+.score-ok      { background: var(--status-pass); }
+.score-ok-dim  { background: var(--status-good); }
+.score-warn    { background: var(--status-warn); }
+.score-fail    { background: var(--status-fail); }
 
 .score-inner {
   width: calc(100% - 24px); height: calc(100% - 24px);
@@ -1356,14 +1380,17 @@ code {
   border-bottom: 1px solid var(--line);
 }
 .check-row:last-child { border-bottom: 0; }
-.check-icon { display: flex; align-items: center; }
+.check-icon { display: flex; align-items: center; color: var(--muted); }
+.check-ok .check-icon      { color: var(--status-pass); }
+.check-warn .check-icon    { color: var(--status-warn); }
+.check-fail .check-icon    { color: var(--status-fail); }
 .check-label { font-size: 16px; }
 .check-status {
   font-size: 14px; font-weight: 600;
 }
-.check-ok .check-status      { color: var(--green); }
-.check-warn .check-status    { color: var(--amber); }
-.check-fail .check-status    { color: var(--red); }
+.check-ok .check-status      { color: var(--status-pass-strong); }
+.check-warn .check-status    { color: var(--status-warn-strong); }
+.check-fail .check-status    { color: var(--status-fail-strong); }
 .check-muted .check-status   { color: var(--muted); }
 
 /* metrics row */
@@ -1381,31 +1408,31 @@ code {
   padding: 18px 12px;
   text-align: center;
 }
-.metric-warn { border-color: var(--red); border-width: 2px; }
+.metric-warn { border-color: var(--status-fail); border-width: 2px; }
 .metric-label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; }
 .metric-value { font-size: 24px; font-weight: 700; margin-top: 6px; }
 
 .alert-card {
-  background: #fef2f2;
-  border-color: #fecaca;
-  color: #991b1b;
+  background: var(--status-fail-soft);
+  border-color: var(--status-fail-border);
+  color: var(--status-fail-strong);
 }
 
 .notes-card {
-  background: #fffbeb;
-  border-color: #fde68a;
+  background: var(--status-warn-soft);
+  border-color: var(--status-warn-border);
 }
 .notes-card h2 {
   font-size: 18px;
   margin: 0 0 12px;
 }
 .note-item + .note-item {
-  border-top: 1px solid #fde68a;
+  border-top: 1px solid var(--status-warn-border);
   margin-top: 14px;
   padding-top: 14px;
 }
 .note-item p {
-  color: #92400e;
+  color: var(--status-warn-strong);
   margin: 6px 0 0;
 }
 
@@ -1706,9 +1733,9 @@ code {
   padding: 6px 12px;
   border-radius: 6px;
 }
-.probe-ok      { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
-.probe-warn    { background: #fffbeb; border-color: #fde68a; color: #92400e; }
-.probe-fail    { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.probe-ok      { background: var(--status-pass-soft); border-color: var(--status-pass-border); color: var(--status-pass-strong); }
+.probe-warn    { background: var(--status-warn-soft); border-color: var(--status-warn-border); color: var(--status-warn-strong); }
+.probe-fail    { background: var(--status-fail-soft); border-color: var(--status-fail-border); color: var(--status-fail-strong); }
 .probe-neutral { background: #f9fafb; border-color: #e5e7eb; color: #4b5563; }
 
 /* =========== /faq page =========== */
@@ -2014,7 +2041,5 @@ code {
 @media (forced-colors: active) {
   .site-header,
   .site-nav { background: Canvas; }
-  .brand-mark rect { fill: CanvasText; }
-  .brand-mark ellipse,
-  .brand-mark path { stroke: Canvas; }
+  .brand-mark { forced-color-adjust: none; }
 }

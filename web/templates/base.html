@@ -14,8 +14,8 @@
   <meta name="twitter:card" content="summary_large_image" />
   {% block og_image %}{% endblock %}
   <link rel="canonical" href="{% block canonical %}https://01yapi.cc/{% endblock %}" />
-  <link rel="stylesheet" href="/static/style.css?v=20260824-1" />
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/style.css?v=20260824-2" />
+  <link rel="icon" href="/static/zero-one-logo.png" type="image/png" />
   {% block head_extra %}{% endblock %}
 </head>
 <body>
@@ -23,11 +23,9 @@
   <header class="site-header">
     <div class="site-header-inner">
       <a class="brand" href="/" aria-label="零一智鉴 · API 真测平台">
-        <svg class="brand-mark" width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <rect x="2" y="2" width="28" height="28" rx="8" fill="#111110"/>
-          <ellipse cx="10.5" cy="16" rx="4" ry="6" stroke="white" stroke-width="2.2"/>
-          <path d="M19 11.5h2.5v9M18.5 20.5h6" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <span class="brand-mark" aria-hidden="true">
+          <img src="/static/zero-one-logo.png" alt="" width="30" height="30" />
+        </span>
         <span>零一智鉴</span>
       </a>
       <button
