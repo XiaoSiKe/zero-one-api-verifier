@@ -1,7 +1,7 @@
 # ZeroOne · API Verification Platform
 
 **零一智鉴 · API 真测平台**<br>
-从零到一，让每一个 API 接口有据可鉴！<br>
+从零到一，让每一个接口有据可鉴！<br>
 正式域名：[01yapi.cc](https://01yapi.cc)
 
 > **二开状态（2026-08-24）**：本仓库已从

@@ -11,7 +11,7 @@ TEMPLATES = ROOT / "web" / "templates"
 STATIC = ROOT / "web" / "static"
 
 PRODUCT_NAME = "零一智鉴 · API 真测平台"
-SLOGAN = "从零到一，让每一个 API 接口有据可鉴！"
+SLOGAN = "从零到一，让每一个接口有据可鉴！"
 SITE_ORIGIN = "https://01yapi.cc"
 FORK_URL = "https://github.com/01-Yang/zero-one-api-verifier"
 UPSTREAM_URL = "https://github.com/canarybyte/veridrop"
@@ -32,6 +32,14 @@ def test_base_template_keeps_identity_and_fork_attribution():
 
     for expected in (PRODUCT_NAME, SLOGAN, FORK_URL, UPSTREAM_URL):
         assert expected in source
+
+
+def test_hub_hero_keeps_requested_brand_copy():
+    source = _read(TEMPLATES / "hub.html")
+
+    assert '<p class="hero-eyebrow">ZeroOne · API Verification Platform</p>' in source
+    assert f"<h1>{PRODUCT_NAME}</h1>" in source
+    assert f'<p class="hero-slogan">{SLOGAN}</p>' in source
 
 
 def test_declared_canonical_blocks_use_zeroone_origin():

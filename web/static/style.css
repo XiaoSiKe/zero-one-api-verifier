@@ -140,10 +140,10 @@ code {
 .brand-mark {
   display: block;
   flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--neutral-950);
 }
 .brand-mark img {
@@ -526,6 +526,7 @@ code {
   line-height: 1.08;
   margin: 0 0 12px;
   letter-spacing: -0.045em;
+  text-wrap: balance;
 }
 .hub-hero p {
   color: var(--muted);
@@ -535,7 +536,7 @@ code {
 .hero-eyebrow {
   margin: 0 0 14px !important;
   color: var(--muted) !important;
-  font-size: 12px !important;
+  font-size: 13px !important;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;

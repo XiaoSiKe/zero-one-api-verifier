@@ -1,6 +1,6 @@
 # 零一智鉴 · API 真测平台 — UI 设计规范
 
-> - 版本：1.1
+> - 版本：1.2
 > - 状态：UI 二开实施基线
 > - 更新日期：2026-08-24
 > - 适用仓库：`01-Yang/zero-one-api-verifier`
@@ -12,7 +12,7 @@
 | 中文产品名 | **零一智鉴 · API 真测平台** |
 | 英文产品名 | **ZeroOne · API Verification Platform** |
 | 仓库名 | `zero-one-api-verifier` |
-| Slogan | **从零到一，让每一个 API 接口有据可鉴！** |
+| Slogan | **从零到一，让每一个接口有据可鉴！** |
 | 正式域名 | `https://01yapi.cc` |
 | Canonical 基址 | `https://01yapi.cc` |
 | Logo 资产 | 原始主档：`/docs/assets/zero-one-logo-source.png`；Web：`/static/zero-one-logo.png` |
@@ -81,7 +81,7 @@
 - 唯一主 Logo 为用户提供的黑底白色图形；原始主档固定为 `/docs/assets/zero-one-logo-source.png`。
 - 不重绘、不变形、不改色，不添加渐变、描边、发光或其他装饰效果。
 - Web 派生文件固定为 `/static/zero-one-logo.png`；只允许裁去黑色安全区并缩放尺寸，不得裁切或改动白色主体。
-- 页头使用 `30 × 30px` 黑色方形视窗，同时保留“零一智鉴”文字标识；Favicon 使用同一 Web 派生文件，避免出现第二套标志。
+- 页头使用 `26 × 26px` 黑色方形视窗，同时保留“零一智鉴”文字标识；Favicon 使用同一 Web 派生文件，避免出现第二套标志。
 - 图形作为产品名旁的装饰时使用空 `alt`；独立出现时必须提供“零一智鉴”替代文本。
 
 ---
@@ -597,7 +597,7 @@ border: 1px solid rgba(255,255,255,.12);
 
 - “零一智鉴 · API 真测平台”；
 - “ZeroOne · API Verification Platform”；
-- “从零到一，让每一个 API 接口有据可鉴！”；
+- “从零到一，让每一个接口有据可鉴！”；
 - `https://01yapi.cc` 正式域名与 Canonical；
 - 首页信息架构、Evidence Trace、Token、毛玻璃边界和响应式体验；
 - 当前 Fork 源码入口、上游归属和 AGPL-3.0-or-later 许可证。
