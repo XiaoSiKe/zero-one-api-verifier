@@ -1,6 +1,9 @@
 # Veridrop SEO + AI GEO 完整方案
 
-> **状态**: v0.1 实施草案
+> [!WARNING]
+> **历史上游参考，非当前实施规范。** 本文保留自 Veridrop 上游的 SEO/GEO 草案，仅用于研究与迁移溯源。文中的 `Veridrop`、`veridrop.org` 及旧状态不代表零一智鉴当前产品身份或发布配置；当前品牌、域名和 Canonical 以 `UI_DESIGN_SPEC.md`、`PRD_ZEROONE_UI_REBRAND.md`、`UPSTREAM_SYNC_POLICY.md` 与运行代码为准，不得从本文复制旧域名到当前页面或元数据。
+
+> **状态**: 历史上游参考（已停止作为实施依据）
 > **日期**: 2026-05-03
 > **作者**: claude(代笔) + tony
 > **执行原则**: 中文 SEO 优先(主市场),英文版做 AI GEO 杠杆;两轨并行不互相阻塞

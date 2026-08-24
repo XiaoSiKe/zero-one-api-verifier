@@ -8,8 +8,9 @@
 > [canarybyte/veridrop](https://github.com/canarybyte/veridrop) Fork，当前先完成
 > [UI 设计规范](docs/UI_DESIGN_SPEC.md) 与
 > [UI 二开 PRD](docs/PRD_ZEROONE_UI_REBRAND.md)，并制定
-> [上游同步与二开保护协议](docs/UPSTREAM_SYNC_POLICY.md)。UI 尚未按新规范实施；现有运行代码仍保持
-> 上游基线行为。后续只改品牌与 UI，检测核心、官方基线、评分、报告、异步任务、排行榜算法
+> [上游同步与二开保护协议](docs/UPSTREAM_SYNC_POLICY.md)。UI 已按新规范完成首轮品牌与视觉实施，
+> 当前进入页面级验证与自动化守卫补齐阶段；现有检测与业务行为仍保持上游基线。后续只改品牌与 UI，
+> 检测核心、官方基线、评分、报告、异步任务、排行榜算法
 > 和 API 契约保持不变。未来上游更新只能通过独立同步分支和 PR 进入，零一智鉴的首页、模板、
 > 样式与品牌资产不得被自动覆盖。本项目继续遵循 AGPL-3.0-or-later，并保留上游归属。
 
