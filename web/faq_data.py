@@ -445,20 +445,3 @@ def faqpage_jsonld() -> dict:
             for entry in cat.entries
         ],
     }
-
-
-def find_entry(anchor: str) -> tuple[FAQCategory, FAQEntry] | None:
-    """Look up a Q by its anchor (e.g. 'claude-thinking-signature').
-
-    Anchor format: '<category-id>-<entry-id>'. Used by product pages that
-    deep-link to specific FAQ entries.
-    """
-    for cat in FAQ_CATEGORIES:
-        prefix = cat.id + "-"
-        if not anchor.startswith(prefix):
-            continue
-        entry_id = anchor[len(prefix):]
-        for e in cat.entries:
-            if e.id == entry_id:
-                return cat, e
-    return None

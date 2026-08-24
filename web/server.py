@@ -559,10 +559,6 @@ async def result_jpg(job_id: str) -> Response:
     )
 
 
-_PROTOCOL_LABELS = {"anthropic": "Claude", "openai": "OpenAI", "gemini": "Gemini"}
-_VERDICT_LABELS = {"passed": "通过", "marginal": "存在风险", "failed": "未达标"}
-
-
 def _seo_meta_for_report(report: dict) -> dict[str, str]:
     """Compute SEO title + description from a finished report.
 
@@ -579,12 +575,12 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     domain = domain or "中转站"
 
     protocol = str(report.get("protocol") or "anthropic")
-    proto_label = _PROTOCOL_LABELS.get(protocol, protocol)
+    proto_label = leaderboard.PROTOCOL_LABELS.get(protocol, protocol)
 
     model = str(report.get("target_model") or "")
     score = float(report.get("total_score") or 0)
     verdict = str(report.get("verdict") or "failed")
-    verdict_zh = _VERDICT_LABELS.get(verdict, verdict)
+    verdict_zh = leaderboard.VERDICT_LABELS.get(verdict, verdict)
 
     results = report.get("results") or []
     pass_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "pass")
@@ -970,8 +966,8 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
                     "Token 统计有明显偏差,建议留意是否存在多算或统计错误。"
                 ),
             })
-        # Note: when token_billing passes, the green check in the detector
-        # list already conveys this. We deliberately don't add a redundant
+        # Note: when token_billing passes, the detector list already conveys
+        # the successful status. We deliberately don't add a redundant
         # "Token 计费正常" note — report notes should only carry signal that
         # needs user attention.
     return notes
