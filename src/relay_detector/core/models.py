@@ -32,7 +32,6 @@ class ExecutionConfig(BaseModel):
     max_concurrent: int = 3
     request_timeout_s: float = 30.0
     overall_timeout_s: float = 60.0
-    strict_signature: bool = False
     use_cache: bool = True
     persist_cache: bool = False
     # Opt-in long-context (needle-in-haystack) probe. Off by default because

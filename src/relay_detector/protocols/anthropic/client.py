@@ -90,6 +90,7 @@ class AnthropicClient:
         timeout: float = DEFAULT_TIMEOUT,
         anthropic_version: str = ANTHROPIC_VERSION,
         extra_headers: dict[str, str] | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.base_url = _normalize_base_url(base_url)
         self.api_key = api_key
@@ -97,6 +98,7 @@ class AnthropicClient:
             "x-api-key": api_key,
             "anthropic-version": anthropic_version,
             "content-type": "application/json",
+            "accept-encoding": "identity",
         }
         if extra_headers:
             headers.update(extra_headers)
@@ -104,6 +106,7 @@ class AnthropicClient:
             base_url=self.base_url,
             headers=headers,
             timeout=timeout,
+            transport=transport,
         )
 
     async def aclose(self) -> None:

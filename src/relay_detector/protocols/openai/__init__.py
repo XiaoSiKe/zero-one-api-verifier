@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
+
 from ...core.detectors_base import BaseDetector
 from ...core.models import DetectionTier, ExecutionConfig, Mode, Protocol
 from .client import OpenAIChatClient
@@ -66,8 +68,13 @@ def build_detectors(mode: Mode | None = None) -> list[BaseDetector]:
     return build_all()
 
 
-def make_client(base_url: str, api_key: str, timeout: float) -> OpenAIChatClient:
-    return OpenAIChatClient(base_url, api_key, timeout=timeout)
+def make_client(
+    base_url: str,
+    api_key: str,
+    timeout: float,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> OpenAIChatClient:
+    return OpenAIChatClient(base_url, api_key, timeout=timeout, transport=transport)
 
 
 def build_runner(

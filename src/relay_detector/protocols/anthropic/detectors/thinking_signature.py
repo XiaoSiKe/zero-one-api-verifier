@@ -1,9 +1,9 @@
 """ThinkingSignatureDetector — DESIGN.md §3.3 ⭐.
 
-Active. The crown-jewel detector: extended/adaptive thinking emits a
-signature_delta event whose payload is a server-side cryptographic signature.
-A relay station impersonating Claude with another model literally cannot
-forge this signature.
+Active. Extended/adaptive thinking emits an opaque signature field. This
+detector checks whether the relay preserves the thinking block and whether the
+signature has a plausible shape. It does not independently verify Anthropic's
+cryptographic signature and must not be presented as proof of model origin.
 
 Sub-checks:
   100 — thinking block (or redacted_thinking) exists, signature non-empty
@@ -55,7 +55,7 @@ def _adaptive_effort_for_model(model: str) -> str:
 
 class ThinkingSignatureDetector(ActiveDetector):
     name = "thinking_signature"
-    display_name = "思维签名验证"
+    display_name = "思维签名透传"
     weight = 25.0
 
     def applies_to(self, model: str) -> bool:
@@ -133,6 +133,8 @@ class ThinkingSignatureDetector(ActiveDetector):
         stop_reason = resp.get("stop_reason")
 
         details: dict = {
+            "verification_level": "shape_only",
+            "cryptographically_verified": False,
             "thinking_params": thinking,
             "output_config_sent": extra.get("output_config"),
             "content_block_types_seen": content_block_types_seen,

@@ -19,13 +19,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from .paths import report_dirs
 
-REPORT_DIRS = [
-    Path("/opt/veridrop/web_data/jobs/anthropic"),
-    Path("/opt/veridrop/web_data/jobs/openai"),
-    Path("/opt/veridrop/web_data/jobs/gemini"),
-    Path("/opt/veridrop/web_data/jobs"),  # legacy top-level
-]
+REPORT_DIRS = report_dirs()
 
 PROTOCOL_LABELS = {"anthropic": "Claude", "openai": "OpenAI", "gemini": "Gemini"}
 VERDICT_LABELS = {"passed": "通过", "marginal": "存在风险", "failed": "未达标"}

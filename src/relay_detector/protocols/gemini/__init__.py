@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
+
 from ...core.detectors_base import BaseDetector
 from ...core.models import DetectionTier, ExecutionConfig, Mode, Protocol
 from .client import DEFAULT_GEMINI_OPENAI_BASE_URL, GeminiClient
@@ -75,8 +77,13 @@ def build_detectors(mode: Mode | None = None) -> list[BaseDetector]:
     return build_all()
 
 
-def make_client(base_url: str, api_key: str, timeout: float) -> GeminiClient:
-    return GeminiClient(base_url, api_key, timeout=timeout)
+def make_client(
+    base_url: str,
+    api_key: str,
+    timeout: float,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> GeminiClient:
+    return GeminiClient(base_url, api_key, timeout=timeout, transport=transport)
 
 
 def build_runner(
@@ -108,6 +115,6 @@ def tier_banner() -> tuple[str, str]:
         (
             "本检测通过 OpenAI 兼容协议 (POST /chat/completions) 探测 Gemini 中转站,"
             "验证响应字段、tool 调用、结构化输出、流式一致性和 usage 字段是否符合 OpenAI 规范。"
-            "它不提供加密级模型真伪证明。"
+            "它不提供独立模型来源证明。"
         ),
     )

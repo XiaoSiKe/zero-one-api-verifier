@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import httpx
+
 from ...core.detectors_base import BaseDetector
 from ...core.models import DetectionTier, ExecutionConfig, Mode, Protocol
 from .client import AnthropicClient
@@ -12,7 +14,7 @@ from .detectors import build_all
 from .runner import Runner
 
 PROTOCOL_NAME = Protocol.ANTHROPIC
-TIER = DetectionTier.CRYPTOGRAPHIC
+TIER = DetectionTier.BEHAVIORAL
 
 
 def model_choices() -> list[str]:
@@ -56,8 +58,13 @@ def build_detectors(mode: Mode | None = None) -> list[BaseDetector]:
     return build_all()
 
 
-def make_client(base_url: str, api_key: str, timeout: float) -> AnthropicClient:
-    return AnthropicClient(base_url, api_key, timeout=timeout)
+def make_client(
+    base_url: str,
+    api_key: str,
+    timeout: float,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> AnthropicClient:
+    return AnthropicClient(base_url, api_key, timeout=timeout, transport=transport)
 
 
 def build_runner(
@@ -88,6 +95,6 @@ def verdict_caption(score: float) -> str:
 
 def tier_banner() -> tuple[str, str]:
     return (
-        "加密级验证",
-        "Claude thinking signature 来自 Anthropic 服务端签名。通过该项时,它是当前检测集中最高可信度的真伪信号。",
+        "多维证据级验证",
+        "Thinking signature 当前仅检查透传形态,不做独立密码学验签；请结合身份、行为、能力与协议证据判断风险。",
     )

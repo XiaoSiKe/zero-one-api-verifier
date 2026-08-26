@@ -25,6 +25,7 @@ from .models import (
     Protocol,
     mask_api_key,
 )
+from .protocols.resolve import protocol_from_model
 from .report import Report
 from .runner import Runner
 from .scorer import compute_total, effective_verdict, fatal_run_error, summary_text
@@ -305,24 +306,16 @@ def _resolve_protocol(protocol_arg: Optional[str], model: str) -> Protocol:
                 "(expected anthropic / openai / gemini)"
             )
             raise typer.Exit(2)
-    # Heuristic by model id prefix — matches web/server.py:_protocol_from_model.
-    s = (model or "").strip().lower().removeprefix("models/")
-    if s.startswith("claude") or "/claude" in s:
-        return Protocol.ANTHROPIC
-    if s.startswith(("gpt-", "o1", "o3", "o4", "chatgpt")):
-        return Protocol.OPENAI
-    if s.startswith("gemini"):
-        return Protocol.GEMINI
-    return Protocol.ANTHROPIC  # fallback for unknown / legacy aliases
+    return protocol_from_model(model, default=Protocol.ANTHROPIC)
 
 
 _PROTOCOL_TIERS = {
     Protocol.ANTHROPIC: (
-        DetectionTier.CRYPTOGRAPHIC,
-        "加密级验证",
+        DetectionTier.BEHAVIORAL,
+        "多维证据级验证",
         (
-            "Claude thinking signature 来自 Anthropic 服务端签名。"
-            "通过该项时,它是当前检测集中最高可信度的真伪信号。"
+            "Thinking signature 当前仅检查透传形态,不做独立密码学验签；"
+            "请结合身份、行为、能力与协议证据判断风险。"
         ),
     ),
     Protocol.OPENAI: (
@@ -340,7 +333,7 @@ _PROTOCOL_TIERS = {
         (
             "本检测通过 OpenAI 兼容协议 (POST /chat/completions) 探测 "
             "Gemini 中转站,验证响应字段、tool 调用、结构化输出、流式一致性"
-            "和 usage 字段是否符合 OpenAI 规范。它不提供加密级模型真伪证明。"
+            "和 usage 字段是否符合 OpenAI 规范。它不提供独立模型来源证明。"
         ),
     ),
 }
