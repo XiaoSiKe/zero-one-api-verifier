@@ -196,6 +196,18 @@
 
       app.querySelector('#secret-note').hidden = !item.clientSecret;
       app.querySelector('#compatibility-note').hidden = !['new-api', 'new_api', 'one-api', 'one_api'].includes(item.type);
+      const providerNote = app.querySelector('#provider-note');
+      const siteOrigin = item.siteUrl || '商家公开地址';
+      if (['new-api', 'new_api'].includes(item.type)) {
+        providerNote.textContent = `New API rc.25：请同时把「系统设置 → 服务器地址」设为 ${siteOrigin}，否则它会用 localhost:3000 换 Token 并导致回调不匹配。`;
+        providerNote.hidden = false;
+      } else if (['one-api', 'one_api'].includes(item.type)) {
+        providerNote.textContent = 'One API v0.6.10：后端 OIDC 配置与 JSON Token 接口可用，但官方镜像内置前端没有 OIDC 登录按钮和回调路由。当前只能标记为 Wire/API 兼容；完整一键登录需升级或补上商家前端。';
+        providerNote.hidden = false;
+      } else {
+        providerNote.hidden = true;
+        providerNote.textContent = '';
+      }
       rotateSecret.hidden = item.type === 'handoff';
     }
 

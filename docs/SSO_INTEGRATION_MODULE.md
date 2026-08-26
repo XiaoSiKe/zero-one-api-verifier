@@ -67,7 +67,7 @@ POST /zeroone/sso/handoff
 
 ### 4.1 标准登录方式
 
-- 协议：OIDC Authorization Code Flow；标准自研客户端强制 PKCE S256。New API/One API 当前版本不发送 PKCE，仅对这两个受控模板使用 Client Secret 兼容例外。
+- 协议：OIDC Authorization Code Flow；标准自研客户端强制 PKCE S256。New API/One API 当前版本不发送 PKCE，仅对这两个受控模板使用 Client Secret 兼容例外。New API `rc.25` 还必须把后台「服务器地址」设为公开 Origin，以保证 Token 请求的 Redirect URI 精确匹配。
 - 零一智鉴提供：Discovery、Authorization、Token、JWKS 和 UserInfo 端点。
 - 商家按 `issuer + sub` 唯一绑定本地账号，不以邮箱作为永久主键。
 - 商家启动地址负责生成 `state`、`nonce` 和 PKCE，完成后创建自己的 Session/Cookie。
@@ -114,7 +114,7 @@ GET  /.well-known/jwks.json               公钥集合
 ## 6. 首版验收标准
 
 1. 用户通过邀请链接完成验证后，邀请人的“成功注册人数”准确增加 1；重复访问和重复登录不增加。
-2. New API/One API 商家无需配置动态 JSON，可在一页向导内完成接入、验证和启用。
+2. New API `v1.0.0-rc.25@f116414` 真实镜像已跑通登录回路。One API `v0.6.10@3915ce9` 已跑通 JSON Token Wire/API 流程，但官方镜像内置前端缺少 OIDC 登录按钮和回调路由；完整一键登录需升级或补上 One API 前端。
 3. 已登录用户点击已接入商家后，无需再次输入账号密码即可进入商家控制台。
 4. 首次进入创建一个商家账号；再次进入必须登录同一账号，不得重复建号。
 5. 邀请归因一经注册绑定不可篡改；自邀、重放、伪造回调和非白名单跳转均被拒绝。
