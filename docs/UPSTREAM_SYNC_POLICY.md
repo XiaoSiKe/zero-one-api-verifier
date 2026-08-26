@@ -1,9 +1,9 @@
 # 零一智鉴上游同步与二开保护协议
 
-> - 版本：1.2
+> - 版本：1.3
 > - 状态：强制执行
-> - 自动化状态：最小产品身份契约已落地；页面流程、视觉快照与受保护路径守卫待补
-> - 更新日期：2026-08-24
+> - 自动化状态：产品身份、首页信息架构和关键 DOM Hook 契约已落地；页面流程、视觉快照与受保护路径守卫待补
+> - 更新日期：2026-08-26
 > - 上游仓库：`canarybyte/veridrop`
 > - 下游仓库：`01-Yang/zero-one-api-verifier`
 > - 当前上游基线：`16feef72ad76d154c3ae6b4c0917319597fc1888`
@@ -70,11 +70,12 @@
 
 其中包括但不限于：
 
-- 首页 Hero、Slogan、Evidence Trace 和主要 CTA；
+- 首页 Hero、Slogan、唯一主 CTA、定义、可核验统计、开源信任、协议入口、检测步骤、结果边界说明和 Evidence Trace；
+- WebGL Threads 只在首页挂载的性能边界，以及禁用 JavaScript/WebGL 时的可读回退；
 - 三个协议检测页的视觉结构；
 - 运行页、报告页、排行榜和 FAQ 的页面布局；
 - 黑白 Token、毛玻璃材质、排版、圆角、阴影、动效和响应式规则；
-- “零一智鉴 · API 真测平台”“ZeroOne · API Verification Platform”及其视觉呈现。
+- “零一智鉴 · API 真测雷达”“ZeroOne · API Verification Platform”及其视觉呈现。
 
 规则：
 
@@ -112,7 +113,7 @@
 
 | 项目 | 必须保持的值 |
 |---|---|
-| 中文产品名 | `零一智鉴 · API 真测平台` |
+| 中文产品名 | `零一智鉴 · API 真测雷达` |
 | 英文产品名 | `ZeroOne · API Verification Platform` |
 | Slogan | `从零到一，让每一个接口有据可鉴！` |
 | 正式域名 | `https://01yapi.cc` |
@@ -239,9 +240,13 @@ git diff --exit-code pre-upstream-sync-2026-08-24 -- \
 已落地的 `tests/test_zeroone_identity.py` 覆盖：
 
 - 产品名、Slogan、当前 Fork 入口和上游归属存在；
+- 首页保留唯一主 CTA、定义、可核验统计、开源信任、三协议入口、检测步骤和结果边界说明；
+- Threads 只出现在首页，服务端渲染的核心内容不依赖 JavaScript 才可读；
 - 模板声明的 Canonical 使用 `https://01yapi.cc`，且不回退到 `veridrop.org`；
 - 活跃模板与静态前端文件不包含上游 Google Analytics ID；
 - 关键 DOM Hook、表单字段和 API Endpoint 仍存在。
+
+该契约保护用户可观察的内容、路由、归属和业务接缝，不锁定字号、容器宽度、SVG 坐标、私有 JavaScript 常量或内部选择器组合。
 
 页面渲染与浏览器流程、首页及关键页面视觉快照、受保护路径差异守卫仍待自动化；在落地前必须按同步 PR 清单提供人工验证证据，不得把本节描述为已全面自动化。
 

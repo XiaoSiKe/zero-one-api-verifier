@@ -1,15 +1,17 @@
-# 零一智鉴 · API 真测平台
+# 零一智鉴 · API 真测雷达
 
-> 零一智鉴 · API 真测平台是免费的 AI API 中转站(relay / proxy)检测工具,1 分钟内验证中转站是否真实
+> 零一智鉴 · API 真测雷达是免费的 AI API 中转站(relay / proxy)检测工具,1 分钟内验证中转站是否真实
 > 透传 Claude / OpenAI / Gemini 模型,还是用其他后端伪装。核心能力:利用 Claude
 > thinking signature(服务端加密签名)做加密级真伪验证 — 一种可加密验证、
 > 中转站不可伪造的指标。无需注册、API key 不留存、代码完全开源。
 
 ## 主要页面
 
+- [首页](https://01yapi.cc/): 介绍产品定义、支持的 3 种协议、开源与 API key 处理承诺、三步检测流程以及不同协议的结果边界。
 - [Claude 中转站检测](https://01yapi.cc/claude): 11 项检测,核心是 thinking signature 加密签名验证(25% 权重),并包含 Token 用量虚报识别。识别 Kiro / Amazon Q / Bedrock 假冒 Claude。
 - [OpenAI 中转站检测](https://01yapi.cc/openai): 7 项检测,Chat Completions 协议合规 + usage 字段后端指纹识别。能识别中转站把 GPT 偷转给 Claude / Gemini 后端。
 - [Gemini 中转站检测](https://01yapi.cc/gemini): 7 项检测,通过 OpenAI 兼容协议探测。适配 Gemini 3 thinking-by-default 模型的特殊处理。
+- [中转站红黑榜](https://01yapi.cc/leaderboard): 按域名汇总公开报告,并保留每份原始报告的可追溯链接。
 - [常见问题](https://01yapi.cc/faq): 35+ 问答,分 6 类:中转站基础、真伪识别、Claude / OpenAI / Gemini 各自特性、隐私安全、与竞品对比。
 - [检测报告](https://01yapi.cc/r/): 任意检测的永久分享链接(HTML + JPG 双形态)。
 
@@ -68,3 +70,6 @@ prompt_tokens / completion_tokens / total_tokens 三个键。中转站若把请�
 
 - 网站: https://01yapi.cc
 - 技术细节: https://01yapi.cc/faq
+- 当前 Fork: https://github.com/01-Yang/zero-one-api-verifier
+- 上游项目: https://github.com/canarybyte/veridrop
+- 许可证: AGPL-3.0-or-later
