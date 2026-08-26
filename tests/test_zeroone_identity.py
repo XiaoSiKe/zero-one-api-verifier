@@ -178,3 +178,12 @@ def test_critical_dom_hooks_and_form_endpoints_remain_available():
     assert 'id="share-btn"' in result
     assert 'id="status-headline"' in running
     assert 'id="run-error"' in running
+
+
+def test_probe_credentials_changes_cancel_stale_auth_failure_state():
+    js = _read(STATIC / "app.js")
+    assert "apiKeyInput.addEventListener('input'" in js
+    assert "baseUrlInput.addEventListener('input'" in js
+    assert "if (inflight && inflight.abort) inflight.abort()" in js
+    assert "lastKey = null" in js
+    assert "setSubmitEnabled(true)" in js
