@@ -1,0 +1,75 @@
+<%- include('layout', { pageTitle: '邀请统计', pageKind: 'invites', csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<%
+  const inviteSummary = typeof summary !== 'undefined' && summary ? summary : {};
+  const initialInviteLink = typeof inviteLink !== 'undefined'
+    ? inviteLink
+    : (inviteSummary.invite_link || inviteSummary.inviteLink || '');
+  const initialClicks = inviteSummary.uniqueClicks ?? inviteSummary.unique_clicks ?? inviteSummary.clicks ?? 0;
+  const initialRegistrations = inviteSummary.successfulRegistrations ?? inviteSummary.successful_registrations ?? inviteSummary.registrations ?? 0;
+  const initialConversion = inviteSummary.conversion_rate ?? inviteSummary.conversionRate ?? 0;
+  const initialRows = typeof registrations !== 'undefined' && Array.isArray(registrations) ? registrations : [];
+%>
+
+<section
+  class="surface invites"
+  data-invites-page
+  data-invite-link="<%= initialInviteLink %>"
+  aria-labelledby="page-title"
+>
+  <header class="page-heading page-heading--compact">
+    <a class="back-link" href="/connect">← 返回 SSO 接入</a>
+    <h1 id="page-title">邀请注册统计</h1>
+    <p>只统计通过链接完成注册并验证的新用户。</p>
+  </header>
+
+  <section class="invite-link-section" aria-labelledby="invite-link-title">
+    <h2 id="invite-link-title">你的邀请链接</h2>
+    <div class="copy-row">
+      <input id="invite-link" type="text" value="<%= initialInviteLink %>" readonly aria-label="你的邀请链接">
+      <button class="button button--secondary" type="button" data-copy-target="invite-link">复制</button>
+    </div>
+  </section>
+
+  <dl class="stats" aria-label="邀请统计概览">
+    <div>
+      <dt>唯一点击</dt>
+      <dd id="invite-clicks"><%= initialClicks %></dd>
+    </div>
+    <div>
+      <dt>成功注册</dt>
+      <dd id="invite-registrations"><%= initialRegistrations %></dd>
+    </div>
+    <div>
+      <dt>转化率</dt>
+      <dd id="invite-conversion"><%= initialConversion %>%</dd>
+    </div>
+  </dl>
+
+  <section class="registration-section" aria-labelledby="registration-title">
+    <div class="section-heading">
+      <h2 id="registration-title">最近注册</h2>
+      <span>身份已脱敏</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">用户</th><th scope="col">注册时间</th></tr>
+        </thead>
+        <tbody id="registration-rows">
+          <% initialRows.forEach((row) => { %>
+            <tr>
+              <td><%= row.masked_email || row.maskedEmail || row.email || '已验证用户' %></td>
+              <td><%= row.registered_at || row.registeredAt || row.bound_at || row.boundAt || '' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <p class="empty-state" id="registration-empty" <%= initialRows.length ? 'hidden' : '' %>>还没有成功注册。分享链接后，结果会显示在这里。</p>
+    </div>
+  </section>
+
+  <p class="inline-error" id="invites-error" role="alert" hidden>统计暂时无法加载，请刷新重试。</p>
+  <p class="sr-only" id="live-status" role="status" aria-live="polite" aria-atomic="true"></p>
+</section>
+
+<%- include('layout-end') %>

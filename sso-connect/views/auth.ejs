@@ -1,0 +1,34 @@
+<%- include('layout', { pageTitle: '确认登录', pageKind: 'auth', csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<%
+  const authAction = typeof formAction !== 'undefined' ? formAction : (typeof action !== 'undefined' ? action : '');
+  const authHiddenFields = typeof hiddenFields !== 'undefined' && hiddenFields ? hiddenFields : {};
+  const merchantName = typeof clientName !== 'undefined'
+    ? clientName
+    : (typeof client !== 'undefined' && client && client.client_name ? client.client_name : '演示商家');
+  const account = typeof accountId !== 'undefined' ? accountId : 'demo-user';
+%>
+
+<section class="surface auth" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="step-label">安全登录</p>
+    <h1 id="page-title">登录到 <%= merchantName %></h1>
+    <p>商家只能收到完成登录所需的基础身份信息。</p>
+  </header>
+
+  <div class="identity-row">
+    <span class="identity-avatar" aria-hidden="true">01</span>
+    <span><strong>零一智鉴演示账号</strong><small>本地模拟验证账号</small></span>
+  </div>
+
+  <form method="post" action="<%= authAction %>">
+    <% Object.entries(authHiddenFields).forEach(([name, value]) => { %>
+      <input type="hidden" name="<%= name %>" value="<%= value %>">
+    <% }) %>
+    <input type="hidden" name="accountId" value="<%= account %>">
+    <button class="button button--primary button--full" type="submit">一键继续</button>
+  </form>
+
+  <p class="auth-note">这是本地联调页面，不会发送真实验证邮件。</p>
+</section>
+
+<%- include('layout-end') %>
