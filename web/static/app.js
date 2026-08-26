@@ -699,12 +699,14 @@
     } catch (e) {
       if (e.name === 'AbortError') return;
       setPill('warn', '⚪ 探测失败,但不影响检测继续 — 你填的模型会被直接尝试');
+      setSubmitEnabled(true);
       return;
     }
     if (r.status === 429) {
       // Rate limited — surface clearly and keep submit enabled so the user
       // can still proceed (they're not blocked from detection itself).
       setPill('warn', '⚠ ' + (data.error || '探测过于频繁,稍后再试') + '(检测仍可正常提交)');
+      setSubmitEnabled(true);
       lastKey = null; // allow retry after backoff
       return;
     }
@@ -716,14 +718,17 @@
       // Auth fail vs other errors — auth_ok=false is the only blocking case
       if (data.auth_ok === false) {
         setPill('fail', '🔴 ' + (data.error || '鉴权失败'));
+        setSubmitEnabled(false, 'API key 鉴权失败');
       } else {
         setPill('warn', '⚪ ' + (data.error || '探测失败') + ' — 不影响检测继续');
+        setSubmitEnabled(true);
       }
       return;
     }
 
     if (!data.models_endpoint_supported) {
       setPill('neutral', '⚪ ' + (data.note || '该中转站不暴露 /v1/models') + '(检测可正常进行)');
+      setSubmitEnabled(true);
       return;
     }
 
@@ -831,6 +836,20 @@
   // Trigger probe on api_key blur. Also re-probe when base_url changes
   // (after blur) so users editing both fields don't miss a re-check.
   apiKeyInput.addEventListener('blur', runProbe);
+  apiKeyInput.addEventListener('input', () => {
+    lastKey = null;
+    if (inflight && inflight.abort) inflight.abort();
+    inflight = null;
+    pill.hidden = true;
+    setSubmitEnabled(true);
+  });
+  baseUrlInput.addEventListener('input', () => {
+    lastKey = null;
+    if (inflight && inflight.abort) inflight.abort();
+    inflight = null;
+    pill.hidden = true;
+    setSubmitEnabled(true);
+  });
   baseUrlInput.addEventListener('blur', () => {
     lastKey = null; // base changed → invalidate dedup
     runProbe();

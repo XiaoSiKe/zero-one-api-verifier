@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}AI API 中转站真假检测 - 验证 Claude / GPT / Gemini 是不是真的 | 零一智鉴{% endblock %}
+{% block title %}AI API 中转站风险检测 - 评估 Claude / GPT / Gemini 是否按声明工作 | 零一智鉴{% endblock %}
 {% block description %}零一智鉴是免费的 AI API 中转站检测工具：通过真实探针、协议字段、能力响应与用量证据，评估 Claude / GPT / Gemini 接口是否按声明工作。无需注册，API key 不持久化，代码开源。{% endblock %}
-{% block og_title %}AI API 中转站真假检测 · 1 分钟看穿 Claude / GPT / Gemini 是不是真的{% endblock %}
+{% block og_title %}AI API 中转站风险检测 · 1 分钟评估 Claude / GPT / Gemini 接口{% endblock %}
 {% block og_description %}用真实请求与字段级证据评估 Claude / GPT / Gemini 中转站，免费、开源、报告可分享。{% endblock %}
 
 {% block head_extra %}
@@ -16,7 +16,7 @@
   "applicationSubCategory": "API Verification Tool",
   "operatingSystem": "Web Browser",
   "url": "https://01yapi.cc/",
-  "browserRequirements": "Requires JavaScript and a modern browser",
+  "browserRequirements": "Core content is readable without JavaScript; interactive detection requires a modern browser",
   "offers": {
     "@type": "Offer",
     "price": "0",
@@ -25,7 +25,7 @@
   },
   "featureList": [
     "Claude thinking signature 结构与响应特征检查",
-    "OpenAI Chat Completions 8 项协议检测",
+    "OpenAI Chat Completions 7 个基础项 + 1 个按需长上下文项",
     "Gemini OpenAI 兼容协议 7 项检测",
     "三协议自动跳转(选错协议一键切换)",
     "提交前死模型预探测",

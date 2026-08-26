@@ -113,9 +113,9 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "verify-authentic",
                 "怎么知道我用的是真 Claude / GPT / Gemini 而不是替身?",
                 "三个方向:① 协议字段(id 前缀、object、finish_reason 是否符合官方规范);"
-                "② 能力指纹(thinking signature 加密签名、PDF 多模态、function calling shape);"
+                "② 能力与协议信号(thinking signature 透传形态、PDF 多模态、function calling shape);"
                 "③ 用量字段(usage 里有没有混入异源痕迹如 claude_cache_creation_*)。"
-                "零一智鉴把这三类合成 7-10 项检测。",
+                "零一智鉴按协议和模式把这三类合成 3-12 项检测。",
             ),
             FAQEntry(
                 "common-fake-tactics",
@@ -130,14 +130,15 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "直接问「你是谁」能验证模型真假吗?",
                 "不能。现代模型都被训练得知道怎么回答身份问题,而且中转站可以注入 system prompt "
                 "让模型说「我是 Claude」。零一智鉴把「身份一致性」检测的权重设为 5%,"
-                "只作为最弱的辅助信号 — 真正可信的是 thinking signature 这种加密级指标。",
+                "只作为最弱的辅助信号；thinking signature 也只是透传形态证据,必须结合其他检测项。",
             ),
             FAQEntry(
                 "kiro-amazon-q",
-                "Kiro / Amazon Q 假冒 Claude 怎么识破?",
+                "Kiro / Amazon Q 包装层风险怎么发现?",
                 "Kiro 和 Amazon Q 是 Amazon 的 Claude 替身网关,响应没有 Claude thinking signature "
                 "(它们走的是 AWS Bedrock 的简化接口,不返回服务端签名)。"
-                "零一智鉴在 thinking_signature 检测上会直接判 0 分,fail 整体检测。",
+                "零一智鉴会把 thinking_signature 该项记为 0 分,再结合其他多维证据给出风险结论;"
+                "该项不单独锁定整体 verdict。",
             ),
             FAQEntry(
                 "gpt-becomes-claude",
@@ -152,16 +153,16 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="claude",
         title="Claude API 中转站",
         intro=(
-            "Claude 是零一智鉴检测最深入的协议 — 因为 Claude 有 thinking signature 这种加密级"
-            "可验证指标。零一智鉴沿用上游 Veridrop 的该项检测能力。"
+            "Claude 是零一智鉴检测最深入的协议 — 可以综合 thinking signature 透传形态、"
+            "身份、行为、能力与协议字段形成多维风险证据。"
         ),
         entries=(
             FAQEntry(
                 "thinking-signature",
-                "thinking signature 是什么?为什么是真伪验证的金标准?",
-                "thinking signature 是 Claude 启用扩展思考时,响应里 signature 字段返回的"
-                "服务端加密产物,长度 500-2000 字符。这个签名由 Anthropic 服务端生成,"
-                "带加密验证 — 中转站理论上无法伪造。零一智鉴把它作为 25% 权重的核心检测项。",
+                "thinking signature 是什么?它能单独证明模型来源吗?",
+                "thinking signature 是 Claude 启用思考时响应里 signature 字段返回的"
+                "不透明字段。零一智鉴检查它是否被透传以及长度形态,并作为 25% 权重的协议证据;"
+                "当前不持有独立官方凭据做密码学验签,不能单独据此证明模型来源。",
             ),
             FAQEntry(
                 "claude-code-relay",
@@ -206,14 +207,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="openai",
         title="OpenAI 中转站",
         intro=(
-            "OpenAI 协议没有像 thinking signature 这样的加密级指标,零一智鉴在 OpenAI 上主要做"
+            "OpenAI 响应没有可供本服务独立验签的来源证明,零一智鉴在 OpenAI 上主要做"
             "「协议合规 + 适配层指纹识别」 — 抓中转站用 Anthropic / Google 后端伪装 GPT 的痕迹。"
         ),
         entries=(
             FAQEntry(
                 "openai-fake-evidence",
                 "OpenAI 中转站把 GPT 偷换成 Claude 有什么直接证据?",
-                "响应的 usage 字段是最直接的证据。真原生 OpenAI 只有 prompt_tokens / "
+                "响应的 usage 字段是最直接的包装层证据。OpenAI-compatible 基线只有 prompt_tokens / "
                 "completion_tokens / total_tokens。如果发现 claude_cache_creation_5_m_tokens、"
                 "usage_source: anthropic、或 input_tokens / output_tokens(Anthropic 命名),"
                 "基本可以判定中转站在协议转换。零一智鉴标为 critical,直接拒绝该项 detector。",
@@ -314,9 +315,10 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "modes-difference",
                 "standard / quick / full 三档模式有什么区别?",
-                "quick (~15s, 3-5 项) 适合快速摸排;standard (~40s, 7-8 项) 是默认推荐;"
-                "full (~70s, 全 10 项) 是完整检测,推荐拿来跟官方基线 1:1 对比。"
-                "所有模式都会跑 thinking signature 这种核心项。",
+                "quick (~15s) 跑 Claude 5 项或 OpenAI/Gemini 3 项;"
+                "standard (~40s) 跑 Claude 9 项或 OpenAI/Gemini 7 项;"
+                "full (~70s) 跑 Claude 11 个基础项、OpenAI 7 个基础项或 Gemini 7 项。"
+                "Claude/OpenAI 可额外勾选长上下文,分别增加 1 项;thinking signature 仅属于 Claude 协议。",
             ),
             FAQEntry(
                 "how-to-read-score",
@@ -390,7 +392,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "vs-cctest",
                 "零一智鉴跟 cctest.ai 有什么区别?",
                 "cctest 只做 Claude(单协议),用「黑盒检测」对抗规避,但维度有限。"
-                "零一智鉴三协议(Claude / OpenAI / Gemini)+ 加密级 thinking signature + "
+                "零一智鉴三协议(Claude / OpenAI / Gemini)+ thinking signature 透传形态 + "
                 "跨协议自动跳转 + 预提交死模型识别 + 完全开源,且 OpenAI 上能识别"
                 "「GPT 实为 Claude」的协议适配层指纹。",
             ),
@@ -398,7 +400,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "vs-hvoy",
                 "零一智鉴跟 hvoy.ai 有什么区别?",
                 "hvoy 也支持三协议,但检测维度浅(主要是协议合规)。"
-                "零一智鉴在 Claude 上有加密级 thinking signature 验证、"
+                "零一智鉴在 Claude 上有 thinking signature 透传形态、"
                 "OpenAI 上有协议转换指纹识别(usage_source 等 critical 级)、"
                 "Gemini 上适配 thinking-by-default 模型,深度更够。",
             ),
@@ -411,7 +413,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "how-to-pick-relay",
                 "怎么挑中转站?有什么硬性指标?",
-                "零一智鉴推荐 5 条硬指标:① thinking signature ≥ 100;"
+                "零一智鉴推荐综合看 5 条证据:① thinking signature 透传形态;"
                 "② protocol critical_issue_count = 0;③ stream / non-stream usage 一致;"
                 "④ 模型 id 字段匹配请求模型(model_consistency pass);"
                 "⑤ 多次请求 completion_tokens CV < 0.10(稳定性)。",

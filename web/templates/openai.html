@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}OpenAI API 中转站检测 · 识别 GPT 偷换 Claude 后端 | 零一智鉴{% endblock %}
-{% block description %}免费检测 OpenAI / GPT 中转站是不是真透传 — 通过 8 项 Chat Completions 协议检测 + usage 字段后端指纹识别,1 分钟看穿中转站是不是把 GPT 请求偷偷转给 Claude / Gemini 后端伪装。{% endblock %}
-{% block og_title %}OpenAI 中转站检测 · 1 分钟识破 GPT 偷换便宜模型{% endblock %}
-{% block og_description %}8 项检测 + usage 字段指纹识别 GPT 替身。免费、不留 key、可分享报告。{% endblock %}
+{% block title %}OpenAI API 中转站检测 · GPT 包装层风险 | 零一智鉴{% endblock %}
+{% block description %}免费评估 OpenAI / GPT 中转站风险 — 通过 7 个基础 Chat Completions 检测 + 1 个按需长上下文项,发现 usage 字段中的 Claude / Gemini 包装层可疑痕迹。{% endblock %}
+{% block og_title %}OpenAI 中转站检测 · GPT 协议与包装层风险{% endblock %}
+{% block og_description %}7 个基础项 + 1 个按需长上下文项,usage 字段包装层风险证据。免费、不留 key、可分享报告。{% endblock %}
 {% block canonical %}https://01yapi.cc/openai{% endblock %}
 {% block og_url %}https://01yapi.cc/openai{% endblock %}
 
@@ -29,7 +29,7 @@
     "Token 用量异常检测",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "零一智鉴通过 8 项 OpenAI Chat Completions 协议检测(含长上下文真实性),1 分钟内验证 OpenAI / GPT 中转站是否真透传,识别中转站把 GPT 请求转给 Claude / Gemini 后端再包装的协议适配层指纹。"
+  "description": "零一智鉴通过 7 个基础 OpenAI Chat Completions 检测和 1 个按需长上下文项,评估 OpenAI / GPT 中转站的协议、能力和用量风险,发现 Claude / Gemini 包装层的可疑痕迹。"
 }
 </script>
 <script type="application/ld+json">
@@ -40,7 +40,7 @@
     {"@type":"Question","name":"我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?","acceptedAnswer":{"@type":"Answer","text":"看响应里有没有「穿帮」的字段。OpenAI 官方回包只会出现三个 token 计数字段;如果中转站偷偷把请求转给 Claude 后端、再包装成 OpenAI 格式发回来,Anthropic 那边的字段经常会跟着漏出来。零一智鉴抓到这种本不该出现的字段就会标记成严重问题,把整体评级降为「小心使用」。简单说:正版 GPT 会按 OpenAI 自家说明书回话,冒牌包装层经常露出对面厂家的痕迹。"}},
     {"@type":"Question","name":"我得了 75 分,为什么结论仍是「小心使用」而不是「通过」?","acceptedAnswer":{"@type":"Answer","text":"分数只是其中一个维度。零一智鉴还会看有没有严重问题 — 哪怕分数到了通过线,只要存在 1 条严重问题(比如字段穿帮),整体结论就会降为「小心使用」。这种情况通常意味着接口能用、能返回结果,但跑的可能不是你以为的那个模型。日常聊天可能没大问题,但跑代码或严肃任务建议换一家。"}},
     {"@type":"Question","name":"测完显示「0 个 GPT 模型可用」,是中转站挂了吗?","acceptedAnswer":{"@type":"Answer","text":"大概率不是中转站坏了,而是这把 key 没开通 GPT 模型权限。很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,没买就调不出对应模型。零一智鉴检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,系统会自动提示你这把 key 实际能用 X 个 Claude 模型,直接点过去就行。"}},
-    {"@type":"Question","name":"为什么 OpenAI 的检测不像 Claude 那样能「拍胸脯保证真伪」?","acceptedAnswer":{"@type":"Answer","text":"因为 OpenAI 没在响应里放「数学证明」级别的防伪码。Claude 有一种叫 thinking signature 的加密签名,中转站没法伪造,所以零一智鉴在 Claude 那边能给出非常确定的结论。OpenAI 这边只能从行为像不像 GPT、字段格式对不对、能力完不完整这些间接线索判断,所以定位为行为/协议级检测 — 能告诉你「看起来正常」或者「看起来可疑」,做不到 100% 数学证明。想要确定结论,推荐用 Claude 模型检测同一家中转站。"}}
+    {"@type":"Question","name":"为什么 OpenAI 检测只能给出风险证据?","acceptedAnswer":{"@type":"Answer","text":"OpenAI 响应没有可供本服务独立验签的来源证明。零一智鉴只能结合行为、字段格式、能力和 usage 包装层痕迹判断风险。Claude 的 thinking signature 在当前版本也只做透传形态检查,不是官方身份认证。"}}
   ]
 }
 </script>
@@ -68,13 +68,13 @@
 <section class="hero">
   <h1>OpenAI / GPT 中转站检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>零一智鉴</strong>通过 8 项 Chat Completions 协议检测 + <strong>usage 字段后端指纹识别</strong>,
-    <strong>1 分钟</strong>识别中转站是真透传 GPT,还是把请求偷偷转给 Claude / Gemini 后端再伪装成 OpenAI 响应。免费、API key 不留存、代码开源。
+    <strong>零一智鉴</strong>通过 7 个基础 Chat Completions 检测 + <strong>usage 字段包装层证据</strong>,
+    <strong>1 分钟</strong>评估中转站的协议、能力和用量风险,发现 Claude / Gemini 后端包装痕迹。免费、API key 不留存、代码开源。
   </p>
 </section>
 
 <section class="card protocol-note">
-  <strong>行为/协议级验证:</strong>
+  <strong>行为/协议级风险评估:</strong>
   本检测无法可靠区分高配模型真品与低配模型伪装。我们检测的是中转站接口是否符合 OpenAI
   Chat Completions 协议规范、能力是否完整、usage 字段是否符合官方响应形状。
 </section>
@@ -114,8 +114,8 @@
         <label for="mode">检测深度</label>
         <select id="mode" name="mode">
           <option value="quick">快速 (~15 秒,3 项)</option>
-          <option value="standard" selected>标准 (~40 秒,6 项)</option>
-          <option value="full">完整 (~70 秒,全 6 项)</option>
+          <option value="standard" selected>标准 (~40 秒,7 项)</option>
+          <option value="full">完整 (~70 秒,8 项,长上下文按需启用)</option>
         </select>
       </div>
     </div>
@@ -154,15 +154,15 @@
 
 <section class="features">
   <div class="feature">
-    <h3>Chat Completions</h3>
+    <h2>Chat Completions</h2>
     <p>验证 <code>chatcmpl-</code>、<code>chat.completion</code>、choices、finish_reason、usage 等官方响应结构。</p>
   </div>
   <div class="feature">
-    <h3>能力完整性</h3>
+    <h2>能力完整性</h2>
     <p>执行 tool call 与 JSON schema 探测,识别把 OpenAI 协议包装成简化文本接口的中转层。</p>
   </div>
   <div class="feature">
-    <h3>字段差异</h3>
+    <h2>字段差异</h2>
     <p>记录 stream/non-stream 一致性与 usage 字段结构,识别常见包装层和协议适配异常。</p>
   </div>
 </section>
@@ -204,14 +204,13 @@
   </details>
 
   <details class="faq-item">
-    <summary>为什么 OpenAI 的检测不像 Claude 那样能「拍胸脯保证真伪」?</summary>
+    <summary>为什么 OpenAI 检测只能给出风险证据?</summary>
     <div class="faq-body">
-      <p>因为 OpenAI 没在响应里放「数学证明」级别的防伪码。Claude 有一种叫
-        <strong>thinking signature</strong> 的加密签名,中转站没法伪造,所以零一智鉴在
-        Claude 那边能给出非常确定的结论。</p>
+      <p>OpenAI 响应没有可供本服务独立验签的来源证明。Claude 的
+        <strong>thinking signature</strong> 在当前版本也只做透传形态检查,不是官方身份认证。</p>
       <p>OpenAI 这边只能从「行为像不像 GPT、字段格式对不对、能力完不完整」这些间接线索判断,
         所以我们的口径是「<strong>行为/协议级</strong>」检测 — 能告诉你「看起来正常」或者
-        「看起来可疑」,但做不到 100% 数学证明。想要确定结论,推荐用 Claude 模型检测同一家中转站。</p>
+        「看起来可疑」。Claude 检测也应将 thinking signature 与其他证据一起阅读,不能把任何单项当成官方认证。</p>
     </div>
   </details>
 
