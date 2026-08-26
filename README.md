@@ -1,15 +1,16 @@
 # ZeroOne · API Verification Platform
 
-**零一智鉴 · API 真测平台**<br>
+**零一智鉴 · API 真测雷达**<br>
 从零到一，让每一个接口有据可鉴！<br>
 正式域名：[01yapi.cc](https://01yapi.cc)
 
-> **二开状态（2026-08-24）**：本仓库已从
+> **UI 模块状态（2026-08-26）**：本仓库已从
 > [canarybyte/veridrop](https://github.com/canarybyte/veridrop) Fork，当前先完成
 > [UI 设计规范](docs/UI_DESIGN_SPEC.md) 与
 > [UI 二开 PRD](docs/PRD_ZEROONE_UI_REBRAND.md)，并制定
-> [上游同步与二开保护协议](docs/UPSTREAM_SYNC_POLICY.md)。UI 已按新规范完成首轮品牌与视觉实施，
-> 当前进入页面级验证与自动化守卫补齐阶段；现有检测与业务行为仍保持上游基线。后续只改品牌与 UI，
+> [上游同步与二开保护协议](docs/UPSTREAM_SYNC_POLICY.md)。首页已收敛为“唯一主检测操作 + 定义 + 可核验统计 +
+> 开源信任 + 三协议入口 + 三步检测 + 结果边界说明”；WebGL Threads 仅在首页运行，禁用 JavaScript 时核心内容仍可读。
+> 当前进入页面级验证与自动化守卫补齐阶段；本次 UI 模块不改检测与业务行为，
 > 检测核心、官方基线、评分、报告、异步任务、排行榜算法
 > 和 API 契约保持不变。未来上游更新只能通过独立同步分支和 PR 进入，零一智鉴的首页、模板、
 > 样式与品牌资产不得被自动覆盖。本项目继续遵循 AGPL-3.0-or-later，并保留上游归属。
@@ -469,10 +470,12 @@ A: 当前覆盖 Anthropic Messages API、OpenAI Chat Completions、Gemini OpenAI
 
 如需商业不开源授权、认证收录或赞助合作,见 [商务合作](https://veridrop.org/business)。
 
-## 贡献
+## 贡献与上游
 
-代码托管在 [canarybyte/veridrop](https://github.com/canarybyte/veridrop)。
-欢迎 issues / PRs / fork — 完整贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+零一智鉴的当前源码托管在 [01-Yang/zero-one-api-verifier](https://github.com/01-Yang/zero-one-api-verifier)；
+检测核心来源于 [canarybyte/veridrop](https://github.com/canarybyte/veridrop)，并继续遵守 AGPL-3.0-or-later。
+欢迎在当前 Fork 提交 issues / PRs；完整贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)，上游更新见
+[上游同步与二开保护协议](docs/UPSTREAM_SYNC_POLICY.md)。
 
 ## 为什么开源
 

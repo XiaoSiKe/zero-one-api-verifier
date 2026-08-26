@@ -17,15 +17,22 @@
   --canvas: var(--neutral-100);
   --bg: var(--neutral-0);
   --bg-soft: var(--neutral-200);
+  --bg-subtle: var(--neutral-50);
   --text: var(--neutral-950);
   --muted: var(--neutral-600);
   --line: rgba(10, 10, 10, 0.10);
+  --line-hover: rgba(10, 10, 10, 0.22);
+  --line-strong: rgba(10, 10, 10, 0.34);
   --separator: rgba(10, 10, 10, 0.06);
   --glass: rgba(255, 255, 255, 0.68);
+  --header-solid: rgba(246, 246, 243, 0.96);
+  --nav-glass: rgba(255, 255, 255, 0.72);
   --accent: var(--neutral-900);
   --accent-hover: var(--neutral-800);
   --accent-soft: rgba(10, 10, 10, 0.04);
+  --on-accent: var(--neutral-0);
   --focus-ring: var(--neutral-950);
+  --focus-shadow: 0 0 0 3px rgba(8, 8, 8, 0.10);
 
   /* Status only — cool-spectrum palette, never used as the brand accent. */
   --status-pass: #2563eb;
@@ -44,6 +51,9 @@
   --status-fail-strong: #581c87;
   --status-fail-soft: #faf5ff;
   --status-fail-border: #e9d5ff;
+  --status-neutral-strong: #4b5563;
+  --status-neutral-soft: #f9fafb;
+  --status-neutral-border: #e5e7eb;
 
   /* Component */
   --button-height: 44px;
@@ -52,9 +62,84 @@
   --card-radius: 16px;
   --shadow: none;
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.07);
+  --shadow-low: 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-enter: 260ms;
+  --motion-reveal: 520ms;
+  --motion-nav: 700ms;
+  --motion-spinner: 900ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Specular CTA material */
+  --specular-base: #525252;
+  --specular-hover: #484848;
+  --specular-text: #f5f5f5;
+  --specular-line: rgba(255, 255, 255, 0.24);
+  --threads-color: 10, 10, 10;
+  --threads-opacity: 0.2;
+  --shiny-base: var(--neutral-950);
+  --shiny-highlight: var(--neutral-600);
+}
+
+html[data-theme="dark"] {
+  --canvas: var(--neutral-950);
+  --bg: #151515;
+  --bg-soft: #1c1c1c;
+  --bg-subtle: #111111;
+  --text: #f5f5f2;
+  --muted: #b3b3ad;
+  --line: rgba(255, 255, 255, 0.12);
+  --line-hover: rgba(255, 255, 255, 0.22);
+  --line-strong: rgba(255, 255, 255, 0.34);
+  --separator: rgba(255, 255, 255, 0.08);
+  --glass: rgba(18, 18, 18, 0.72);
+  --header-solid: rgba(8, 8, 8, 0.96);
+  --nav-glass: rgba(4, 4, 4, 0.72);
+  --accent: #f5f5f2;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.07);
+  --on-accent: var(--neutral-950);
+  --focus-ring: #c4b5fd;
+  --focus-shadow: 0 0 0 3px rgba(196, 181, 253, 0.22);
+
+  --status-pass: #60a5fa;
+  --status-pass-strong: #93c5fd;
+  --status-pass-soft: rgba(37, 99, 235, 0.18);
+  --status-pass-border: rgba(96, 165, 250, 0.38);
+  --status-good: #818cf8;
+  --status-good-strong: #a5b4fc;
+  --status-good-soft: rgba(79, 70, 229, 0.18);
+  --status-good-border: rgba(129, 140, 248, 0.38);
+  --status-warn: #a78bfa;
+  --status-warn-strong: #c4b5fd;
+  --status-warn-soft: rgba(124, 58, 237, 0.18);
+  --status-warn-border: rgba(167, 139, 250, 0.40);
+  --status-fail: #c084fc;
+  --status-fail-strong: #d8b4fe;
+  --status-fail-soft: rgba(107, 33, 168, 0.22);
+  --status-fail-border: rgba(192, 132, 252, 0.42);
+  --status-neutral-strong: #d1d5db;
+  --status-neutral-soft: #1f2329;
+  --status-neutral-border: #374151;
+
+  --shadow-float: 0 10px 36px rgba(0, 0, 0, 0.34);
+  --shadow-low: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --threads-color: 248, 250, 252;
+  --threads-opacity: 0.34;
+  --shiny-base: #b5b5b5;
+  --shiny-highlight: var(--neutral-0);
 }
 
 * { box-sizing: border-box; }
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+html[data-theme="dark"] { color-scheme: dark; }
 html, body { margin: 0; padding: 0; overflow-x: hidden; }
 
 body {
@@ -68,18 +153,40 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: background-color var(--motion-base) ease, color var(--motion-base) ease;
+}
+
+.threads-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--canvas);
+}
+.threads-background canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: var(--threads-opacity);
+  transform: none;
+}
+body > :not(.threads-background):not(.site-header):not(.skip-link) {
+  position: relative;
+  z-index: 1;
 }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 0.18em; }
 h1, h2, h3 { font-weight: 600; }
+.no-break { white-space: nowrap; }
 
 :where(a, button, input, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
-::selection { background: var(--neutral-800); color: var(--neutral-0); }
+::selection { background: var(--accent); color: var(--on-accent); }
 
 .skip-link {
   position: fixed;
@@ -89,7 +196,7 @@ h1, h2, h3 { font-weight: 600; }
   padding: 10px 14px;
   border-radius: 10px;
   background: var(--accent);
-  color: var(--neutral-0);
+  color: var(--on-accent);
   transform: translateY(-160%);
 }
 .skip-link:focus { transform: translateY(0); }
@@ -104,34 +211,60 @@ code {
 }
 
 .site-header {
-  border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 50;
+  height: 64px;
+  background: transparent;
 }
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .site-header {
-    background: var(--glass);
-    -webkit-backdrop-filter: blur(24px) saturate(110%);
-    backdrop-filter: blur(24px) saturate(110%);
-  }
-}
-/* Inner wrapper aligns nav content with the page container's max-width
-   (960px) so on wide monitors the nav doesn't drift to the screen edges
-   while the body stays centered. */
+/* Matches the reference navbar: full-width and transparent at the top,
+   then a compact glass capsule after the page starts scrolling. */
 .site-header-inner {
-  max-width: 960px;
+  position: relative;
+  width: calc(100% - 48px);
+  max-width: 1184px;
+  height: 64px;
   margin: 0 auto;
-  min-height: 64px;
-  padding: 10px 24px;
+  padding: 0;
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 20px;
+  border: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+  transition:
+    width var(--motion-nav) var(--ease-spring),
+    height var(--motion-nav) var(--ease-spring),
+    transform var(--motion-nav) var(--ease-spring),
+    max-width var(--motion-nav) var(--ease-spring),
+    border-color var(--motion-nav) var(--ease-spring),
+    border-radius var(--motion-nav) var(--ease-spring),
+    background-color var(--motion-nav) var(--ease-spring),
+    box-shadow var(--motion-nav) var(--ease-spring);
+}
+.site-header.is-scrolled .site-header-inner {
+  width: min(calc(100% - 48px), 808px);
+  max-width: 808px;
+  height: 48px;
+  transform: translateY(8px);
+  border-color: var(--line);
+  border-radius: 24px;
+  background: var(--nav-glass);
+  box-shadow: var(--shadow-float);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .site-header.is-scrolled .site-header-inner {
+    -webkit-backdrop-filter: saturate(120%) blur(40px);
+    backdrop-filter: saturate(120%) blur(40px);
+  }
 }
 .brand {
   display: flex; align-items: center; gap: 8px;
-  font-weight: 700; font-size: 18px; color: var(--text);
+  font-weight: 700; font-size: 15px; color: var(--text);
   letter-spacing: -0.01em;
   flex-shrink: 0;
   min-height: var(--button-height);
@@ -140,52 +273,42 @@ code {
 .brand-mark {
   display: block;
   flex: 0 0 auto;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--neutral-950);
 }
 .brand-mark img {
   display: block;
   width: 100%;
   height: 100%;
+  transform: scale(0.78);
+  transform-origin: center;
 }
 
-/* Desktop / tablet: nav inline next to brand, left-grouped (NOT pushed to
-   the right). Standard SaaS navbar layout — feels balanced because the
-   eye reads brand → nav → empty space, not brand → wide gap → nav. */
 .site-nav {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   align-items: center;
+  margin-left: auto;
 }
 .site-nav a {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
   min-height: var(--button-height);
-  padding: 0 10px;
+  padding: 0 9px;
   position: relative;
   display: inline-flex;
   align-items: center;
+  border-radius: 12px;
+  transition: color var(--motion-fast) ease, background-color var(--motion-fast) ease;
 }
 .site-nav a:hover {
   color: var(--text);
+  background: var(--accent-soft);
   text-decoration: none;
 }
-/* Subtle underline on hover/focus — feels more "tappable" than bare text */
-.site-nav a::after {
-  content: "";
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.15s ease;
-}
-.site-nav a:hover::after,
-.site-nav a:focus-visible::after { transform: scaleX(1); }
 
 /* GitHub button in nav — pill-shaped chip with the official mark + label.
  * Stronger visual weight than text links so it reads as "primary external
@@ -201,7 +324,7 @@ code {
   border-radius: 999px;
   color: var(--text) !important;
   margin-left: 2px;
-  transition: background 0.15s, color 0.15s;
+  transition: background var(--motion-fast), color var(--motion-fast);
 }
 .nav-github:hover {
   background: var(--bg-soft);
@@ -210,7 +333,31 @@ code {
 .nav-github svg {
   flex-shrink: 0;
 }
-.nav-github::after { display: none !important; }  /* suppress nav underline */
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--button-height);
+  height: var(--button-height);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  transition: color var(--motion-fast), background-color var(--motion-fast), border-color var(--motion-fast);
+}
+.theme-toggle:hover {
+  background: var(--accent-soft);
+  border-color: var(--line);
+}
+.theme-icon { display: block; }
+.theme-icon-sun { display: none; }
+html[data-theme="dark"] .theme-icon-moon { display: none; }
+html[data-theme="dark"] .theme-icon-sun { display: block; }
+.theme-toggle-label { display: none; }
 
 /* Hamburger button — hidden on desktop, shown on mobile. */
 .nav-toggle {
@@ -233,7 +380,7 @@ code {
   height: 2px;
   background: var(--text);
   border-radius: 2px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform var(--motion-base) ease, opacity var(--motion-base) ease;
 }
 /* Animate to an "X" when open — gives a clear close affordance. */
 .nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(1) {
@@ -249,7 +396,7 @@ code {
 .container {
   max-width: 960px;
   margin: 0 auto;
-  padding: 36px 24px 64px;
+  padding: 72px 24px 64px;
   flex: 1;
   width: 100%;
 }
@@ -278,19 +425,30 @@ code {
   margin-top: 8px;
 }
 
-/* Footer multi-column layout — replaces the single centered paragraph
- * with a grid of {tagline + GitHub button | 项目 | 工具 | 资源}.
- * Designed for an SEO-friendly internal-link cluster footer (every
- * deep-link reachable from any page) without becoming a wall of text. */
+/* Brand statement stays left; the three navigation groups stay together on
+ * the right so the footer reads as one balanced closing block. */
 .footer-grid {
-  max-width: 960px;
+  max-width: 1184px;
   margin: 0 auto;
-  padding: 28px 24px 12px;
+  padding: 40px 24px 24px;
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
-  gap: 32px;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(560px, 1.2fr);
+  justify-content: space-between;
+  gap: clamp(80px, 12vw, 180px);
   text-align: left;
   box-sizing: border-box;
+}
+.footer-brand { align-self: start; justify-self: start; }
+.footer-brand p {
+  max-width: none;
+  padding: 0;
+}
+.footer-links {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr);
+  gap: 28px;
+  justify-self: end;
+  width: min(100%, 620px);
 }
 .footer-col h4 {
   margin: 0 0 10px;
@@ -314,52 +472,40 @@ code {
   color: var(--text);
   text-decoration: underline;
 }
-.footer-tagline {
-  margin: 0 0 8px;
+.site-footer .footer-tagline {
+  margin: 0 0 18px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 25px;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
 }
-.footer-tagline strong { color: var(--accent); }
-.footer-desc {
-  margin: 0 0 14px;
+.footer-tagline strong { color: var(--text); }
+.site-footer .footer-desc {
+  margin: 0;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  max-width: 320px;
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 360px !important;
+  text-wrap: pretty !important;
 }
 .footer-copyright {
   text-align: center;
   margin: 8px 0 0;
   padding: 0 24px;
 }
-.footer-copyright-github {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 8px;
-  color: inherit !important;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", monospace;
-  text-decoration: none;
-  vertical-align: middle;
-  opacity: 0.85;
-  transition: opacity 0.15s;
-}
-.footer-copyright-github:hover {
-  opacity: 1;
-  text-decoration: none;
-}
-.footer-upstream a { color: inherit; text-decoration: underline; text-underline-offset: 0.18em; }
-.footer-copyright-github svg {
-  flex-shrink: 0;
-}
+.footer-col a strong { color: var(--text); font-weight: 600; }
 @media (max-width: 720px) {
   .footer-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  .footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 32px;
   }
-  .footer-col-tagline {
-    grid-column: 1 / -1;  /* tagline + GitHub btn span both columns */
-  }
+}
+@media (max-width: 440px) {
+  .footer-links { grid-template-columns: 1fr; }
 }
 
 /* ============================== Trust Strip ==============================
@@ -367,10 +513,9 @@ code {
  * exists because Veridrop's product premise is "hand us your API key" —
  * users won't do that without proof of trust. We give 3 cards of
  * concrete promises, each linking into the actual code that proves it.
- * Visual weight is intentionally heavy: subtle gradient bg + clear
- * heading anchor + GitHub CTA at the bottom. */
+ * Visual weight comes from a clear heading and three auditable promises. */
 .trust-strip {
-  margin: 32px 0 40px;
+  margin: 0 0 56px;
   padding: 28px 28px 24px;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -398,11 +543,11 @@ code {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
 }
 .trust-card {
   padding: 18px 18px 16px;
-  background: var(--neutral-50);
+  background: var(--bg-subtle);
   border: 1px solid var(--line);
   border-radius: var(--card-radius);
   display: flex;
@@ -450,54 +595,29 @@ code {
   border-radius: 3px;
 }
 .trust-link {
-  font-size: 12.5px;
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 500;
-  margin-top: auto;
-}
-.trust-link:hover { text-decoration: underline; }
-
-.trust-cta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-}
-/* GitHub source link stays secondary; the detect action is the only solid CTA. */
-.btn-github {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: var(--button-height);
-  padding: 10px 18px;
-  background: var(--bg);
-  color: var(--accent);
+  justify-content: center;
+  width: fit-content;
+  min-height: 40px;
+  padding: 0 14px;
   border: 1px solid var(--line);
-  border-radius: var(--control-radius);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", monospace;
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 12.5px;
+  color: var(--text);
   text-decoration: none;
-  transition: background 0.15s, transform 0.1s;
+  font-weight: 600;
+  margin-top: auto;
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), transform var(--motion-fast);
 }
-.btn-github:hover {
+.trust-link:hover {
   background: var(--accent-soft);
-  border-color: rgba(10, 10, 10, 0.22);
-  color: var(--accent);
+  border-color: var(--line-hover);
   text-decoration: none;
   transform: translateY(-1px);
 }
-.trust-license-pill {
-  font-size: 12px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", monospace;
-  color: var(--muted);
-  padding: 6px 12px;
-  background: var(--bg-soft);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
+
 @media (max-width: 760px) {
   .trust-cards { grid-template-columns: 1fr; }
   .trust-strip { padding: 22px 18px 18px; }
@@ -514,19 +634,10 @@ code {
 
 /* hub */
 .hub-hero {
-  /* 不设 max-width — 让首屏文字、协议卡片、why/how 各 section 共用 .container
-     的 960px 全宽,左右边缘视觉对齐。text-wrap: balance 会在 960px 内自动
-     算出每行接近相等的宽度,所以不会出现"一行特别长"的问题。 */
   max-width: 860px;
-  margin: 28px auto 28px;
+  margin: 16px auto 56px;
+  padding: 24px 0 4px;
   text-align: center;
-}
-.hub-hero h1 {
-  font-size: clamp(38px, 5vw, 56px);
-  line-height: 1.08;
-  margin: 0 0 12px;
-  letter-spacing: -0.045em;
-  text-wrap: balance;
 }
 .hub-hero p {
   color: var(--muted);
@@ -536,17 +647,141 @@ code {
 .hero-eyebrow {
   margin: 0 0 14px !important;
   color: var(--muted) !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 .hero-slogan {
-  margin: 0 0 20px !important;
-  color: var(--text) !important;
-  font-size: clamp(18px, 2vw, 22px) !important;
-  font-weight: 500;
+  margin: 0 0 22px !important;
+}
+
+/* Native StrokeText adaptation for the Hub title and slogan. The source text
+   remains readable until JS mounts the SVG outline and wipe-fill layers. */
+.stroke-text {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: none;
+  color: var(--text);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  text-rendering: geometricPrecision;
+}
+.stroke-text-title {
+  width: 100%;
+  margin: 0 0 8px;
+  font-size: clamp(46px, 5.75vw, 69px);
+  line-height: 1.06;
+}
+.hero-slogan.stroke-text {
+  color: var(--text);
+  font-size: clamp(21px, 2.3vw, 25px) !important;
   letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.stroke-text.is-enhanced {
+  font-size: 0 !important;
+  line-height: 0;
+}
+.stroke-text-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.stroke-text-visual {
+  display: flex;
+  justify-content: center;
+  width: min(100%, var(--stroke-natural-width));
+  max-width: 100%;
+}
+.stroke-text-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+}
+.stroke-text-char {
+  fill: transparent;
+  stroke: var(--shiny-base);
+  stroke-width: 1.1px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5000;
+  stroke-dashoffset: 5000;
+}
+.stroke-text-fill {
+  fill: var(--shiny-base);
+  stroke: none;
+}
+.stroke-text-shiny-fill {
+  fill: var(--stroke-shiny-fill);
+  opacity: 0;
+}
+.stroke-text-fill-wipe {
+  transform: scaleX(0);
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+.stroke-text.is-running .stroke-text-char {
+  animation: stroke-text-draw 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-delay: var(--stroke-delay);
+}
+.stroke-text[data-shiny-after-fill].is-running .stroke-text-char {
+  animation-name: stroke-text-draw, stroke-text-outline-off;
+  animation-duration: 1s, 0.15s;
+  animation-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94), linear;
+  animation-fill-mode: both, both;
+  animation-delay: var(--stroke-delay), var(--shiny-delay);
+}
+.stroke-text.is-running .stroke-text-fill-wipe {
+  animation: stroke-text-wipe 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-delay: var(--fill-delay);
+}
+.stroke-text.is-running .stroke-text-shiny-fill {
+  animation: stroke-text-shiny-on 0.15s linear both;
+  animation-delay: var(--shiny-delay);
+}
+@keyframes stroke-text-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes stroke-text-wipe {
+  to { transform: scaleX(1); }
+}
+@keyframes stroke-text-shiny-on {
+  to { opacity: 1; }
+}
+@keyframes stroke-text-outline-off {
+  to { opacity: 0; }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0.56;
+    transform: translateY(22px) scale(0.992);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+.reveal-enter {
+  animation: reveal-in var(--motion-reveal) var(--ease-spring) both;
+  animation-delay: var(--reveal-delay, 0ms);
 }
 
 .protocol-grid {
@@ -565,7 +800,6 @@ code {
   flex-direction: column;
   min-height: 300px;
 }
-.protocol-card-primary { border-color: rgba(10, 10, 10, 0.34); }
 .protocol-top {
   display: flex;
   justify-content: space-between;
@@ -611,8 +845,8 @@ code {
   background: var(--status-warn-soft);
 }
 .tier-protocol {
-  color: #374151;
-  background: #f3f4f6;
+  color: var(--status-neutral-strong);
+  background: var(--status-neutral-soft);
 }
 .hub-note {
   border-top: 1px solid var(--line);
@@ -628,6 +862,11 @@ code {
   margin: 0 0 16px;
 }
 
+.hub-note a {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 /* CJK + 英文混排:用 text-wrap: balance 让浏览器主动平衡每行宽度
    (Chrome 114+ / Firefox 121+ / Safari 17.5+),避免出现某行只到一半就换行
    的难看排版。仅对短文本(<= 6 行)生效,正好覆盖首页这些介绍段落。
@@ -640,7 +879,6 @@ code {
    how-steps 一致 — 第一行填满容器,装不下才换行。 */
 .hub-meta,
 .protocol-card p,
-.why-item p,
 .site-footer p {
   overflow-wrap: break-word;
   text-wrap: balance;
@@ -664,15 +902,28 @@ code {
   color: var(--accent);
   font-weight: 600;
 }
-.hub-meta {
-  font-size: 13px;
+.hub-hero .hub-meta {
+  font-size: 18.7px;
   color: var(--muted);
-  margin: 0;
+  margin: 0 auto;
   letter-spacing: 0.01em;
+}
+.hub-hero .answer-capsule {
+  max-width: 760px;
+  margin: 0 auto 14px;
+  color: var(--text);
+  font-size: 18px;
+  text-align: center;
 }
 .hub-meta strong {
   color: var(--text);
   font-weight: 600;
+}
+.hub-hero .hub-primary-action {
+  width: fit-content;
+  max-width: 100%;
+  margin: 28px auto 0;
+  padding-inline: 28px;
 }
 /* 内联版 meta:跟在 .answer-capsule 末尾继续流动而不是另起一段。
    保持灰色 + 稍小字号的视觉差异,前面留一格空白做天然分隔。 */
@@ -683,52 +934,6 @@ code {
   margin-left: 0.5em;
 }
 .hub-meta-inline strong { color: var(--text); font-weight: 600; }
-
-/* "why veridrop" 5-card differentiator grid */
-.why-veridrop { margin: 44px 0 8px; }
-.why-veridrop h2 {
-  font-size: 24px;
-  margin: 0 0 18px;
-  letter-spacing: -0.01em;
-}
-.why-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-.why-item {
-  border: 1px solid var(--line);
-  border-radius: var(--card-radius);
-  padding: 20px;
-  background: var(--bg);
-  box-shadow: var(--shadow);
-}
-.why-num {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
-}
-.why-item h3 {
-  font-size: 16px;
-  margin: 0 0 8px;
-  line-height: 1.35;
-  letter-spacing: -0.005em;
-}
-.why-item p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 0;
-}
-.why-item code {
-  background: var(--bg-soft);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 12.5px;
-  color: var(--text);
-}
 
 /* "how it works" 3-step list */
 .how-it-works { margin: 44px 0 8px; }
@@ -760,7 +965,7 @@ code {
   height: 32px;
   border-radius: 50%;
   background: var(--accent);
-  color: var(--neutral-0);
+  color: var(--on-accent);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -1128,13 +1333,13 @@ code {
 }
 .lb-page-current {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border-color: var(--accent);
   font-weight: 600;
 }
 .lb-page-current:hover {
   background: var(--accent);  /* lock — current page isn't a link */
-  color: white;
+  color: var(--on-accent);
 }
 .lb-page-disabled {
   opacity: 0.4;
@@ -1209,11 +1414,13 @@ code {
   min-height: var(--input-height);
   font-size: 15px;
   background: var(--bg);
+  color: var(--text);
   font-family: inherit;
 }
+.field input::placeholder { color: var(--muted); opacity: 0.78; }
 .field input:focus-visible, .field select:focus-visible {
   border-color: var(--focus-ring);
-  box-shadow: 0 0 0 3px rgba(8, 8, 8, 0.10);
+  box-shadow: var(--focus-shadow);
 }
 .field .hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -1236,6 +1443,7 @@ code {
   width: 16px;
   height: 16px;
   cursor: pointer;
+  accent-color: var(--accent);
 }
 .field-checkbox label {
   display: flex;
@@ -1270,15 +1478,97 @@ code {
   background: var(--bg);
   color: var(--text);
   text-decoration: none;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 .btn:hover { background: var(--bg-soft); }
 .btn-primary {
-  background: var(--accent); color: white; border-color: var(--accent);
+  background: var(--accent); color: var(--on-accent); border-color: var(--accent);
   width: 100%; padding: 13px 22px; font-size: 16px;
 }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-ghost { background: var(--bg); }
+
+/* Explicit allowlist for CTA material. Utility, status and recovery controls
+   keep their familiar component styles and are intentionally not included. */
+.specular-button {
+  --shine-x: 50%;
+  --shine-y: 50%;
+  --shine-opacity: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 18px;
+  border-color: var(--specular-line);
+  background: var(--specular-base);
+  color: var(--specular-text);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+}
+.specular-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    40px circle at var(--shine-x) var(--shine-y),
+    rgba(255, 255, 255, 0.34) 0,
+    rgba(255, 255, 255, 0.14) 26%,
+    transparent 72%
+  );
+  opacity: var(--shine-opacity);
+  transition: opacity var(--motion-fast) ease;
+}
+.specular-button::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  padding: 1px;
+  background: radial-gradient(
+    40px circle at var(--shine-x) var(--shine-y),
+    rgba(255, 255, 255, 0.95),
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: var(--shine-opacity);
+}
+.specular-button:hover {
+  background: var(--specular-hover);
+  border-color: rgba(255, 255, 255, 0.42);
+  color: var(--specular-text);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+.specular-button:active { transform: translateY(0); }
+.specular-button:focus-visible {
+  outline-color: var(--focus-ring);
+  box-shadow:
+    0 0 0 3px var(--canvas),
+    0 0 0 5px var(--focus-ring),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.specular-button:disabled,
+.specular-button[aria-disabled="true"] {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+}
+.specular-button:disabled::before,
+.specular-button:disabled::after,
+.specular-button[aria-disabled="true"]::before,
+.specular-button[aria-disabled="true"]::after { display: none; }
 
 .form-error {
   color: var(--status-fail);
@@ -1321,7 +1611,7 @@ code {
   border-top-color: var(--accent);
   border-radius: 50%;
   margin: 0 auto 18px;
-  animation: spin 0.9s linear infinite;
+  animation: spin var(--motion-spinner) linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .muted { color: var(--muted); }
@@ -1462,7 +1752,7 @@ code {
   max-height: 280px;
   overflow-y: auto;
   z-index: 20;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-float);
   -webkit-overflow-scrolling: touch;
 }
 .combo-item {
@@ -1481,7 +1771,7 @@ code {
 }
 .combo-item:active {
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 .combo-item[hidden] { display: none; }
 /* When the input has a query, non-matching items dim instead of hide so the
@@ -1534,7 +1824,7 @@ code {
   background: var(--bg);
   color: var(--text);
   font-weight: 600;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-low);
 }
 
 /* Mode-specific answer visibility — by default both <p data-mode> are in
@@ -1600,18 +1890,17 @@ code {
 /* Tablet (721px–960px): same desktop layout, just slightly tighter padding
    so on iPad portrait the brand+nav fit one row without crowding. */
 @media (max-width: 960px) {
-  .site-header-inner { padding: 14px 20px; gap: 20px; }
+  .site-header-inner { width: calc(100% - 32px); padding: 0 8px; gap: 12px; }
   .site-nav { gap: 0; }
-  .site-nav a { font-size: 13px; }
+  .site-nav a { padding: 0 7px; font-size: 13px; }
 }
 
 /* Mobile (≤720px): collapse nav into hamburger dropdown. */
 @media (max-width: 720px) {
   .features { grid-template-columns: 1fr; }
   .protocol-grid { grid-template-columns: 1fr; }
-  .why-grid { grid-template-columns: 1fr; }
   .answer-capsule { font-size: 16px; }
-  .why-veridrop h2, .how-it-works h2 { font-size: 20px; }
+  .how-it-works h2 { font-size: 20px; }
 
   /* leaderboard 手机端:rank 列改小 + score 移到 main 下方,避免 3 列挤 */
   .lb-row {
@@ -1655,17 +1944,31 @@ code {
   /* Show hamburger; collapse nav into a dropdown panel positioned right
      under the header. */
   .nav-toggle { display: flex; }
-  .site-header-inner { padding: 12px 16px; gap: 12px; }
+  .site-header-inner {
+    width: calc(100% - 24px);
+    height: 56px;
+    padding: 0 12px;
+    gap: 12px;
+    transform: translateY(4px);
+  }
+  .site-header.is-scrolled .site-header-inner {
+    width: calc(100% - 24px);
+    height: 48px;
+    transform: translateY(8px);
+  }
 
   .site-nav {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.96);
-    border-bottom: 1px solid var(--line);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+    margin-left: 0;
+    background: var(--header-solid);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow-float);
     flex-direction: column;
+    align-items: stretch;
     gap: 0;
     padding: 8px 0;
     /* Hidden by default on mobile; toggled via aria-expanded on .nav-toggle */
@@ -1677,12 +1980,14 @@ code {
     display: flex;
   }
   .site-nav a {
+    width: 100%;
+    justify-content: flex-start;
     padding: 14px 20px;
     font-size: 15px;
     color: var(--text);
     border-bottom: 1px solid var(--line);
   }
-  .site-nav a:last-child { border-bottom: none; }
+  .site-nav a:last-of-type { border-bottom: none; }
   .site-nav a:hover { background: var(--bg-soft); }
   /* Disable the underline animation in dropdown rows — it competes with
      the row-tap highlight and looks busy. */
@@ -1705,14 +2010,25 @@ code {
   .site-nav .nav-github svg {
     order: -1;
   }
+  .site-nav .theme-toggle {
+    width: 100%;
+    height: auto;
+    min-height: var(--button-height);
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px 20px;
+    border: 0;
+    border-radius: 0;
+  }
+  .theme-toggle-label { display: inline; }
 }
 
 @media (max-width: 720px) {
   @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
     .site-nav {
       background: var(--glass);
-      -webkit-backdrop-filter: blur(24px) saturate(110%);
-      backdrop-filter: blur(24px) saturate(110%);
+      -webkit-backdrop-filter: blur(32px) saturate(120%);
+      backdrop-filter: blur(32px) saturate(120%);
     }
   }
 }
@@ -1737,7 +2053,11 @@ code {
 .probe-ok      { background: var(--status-pass-soft); border-color: var(--status-pass-border); color: var(--status-pass-strong); }
 .probe-warn    { background: var(--status-warn-soft); border-color: var(--status-warn-border); color: var(--status-warn-strong); }
 .probe-fail    { background: var(--status-fail-soft); border-color: var(--status-fail-border); color: var(--status-fail-strong); }
-.probe-neutral { background: #f9fafb; border-color: #e5e7eb; color: #4b5563; }
+.probe-neutral {
+  background: var(--status-neutral-soft);
+  border-color: var(--status-neutral-border);
+  color: var(--status-neutral-strong);
+}
 
 /* =========== /faq page =========== */
 .faq-hero {
@@ -1847,7 +2167,7 @@ code {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .faq-entry[open] {
-  border-color: rgba(10, 10, 10, 0.34);
+  border-color: var(--line-strong);
   box-shadow: none;
 }
 .faq-entry summary.faq-q {
@@ -2008,7 +2328,7 @@ code {
 
 .protocol-note {
   border-left: 3px solid var(--accent);
-  background: var(--neutral-50);
+  background: var(--bg-subtle);
   color: var(--text);
 }
 
@@ -2023,9 +2343,21 @@ code {
 .faq-permalink:focus-visible { opacity: 1; }
 
 @media (max-width: 720px) {
-  .hub-hero { margin-top: 16px; }
-  .hub-hero h1 { font-size: clamp(34px, 10vw, 44px); }
-  .footer-upstream { display: block; margin-top: 6px; }
+  .hub-hero { margin: 8px auto 48px; padding-top: 16px; }
+  .stroke-text-title {
+    width: 100%;
+    margin: 0 0 12px;
+    white-space: normal;
+    text-wrap: balance;
+  }
+  .stroke-text-title .stroke-text-visual {
+    width: min(100%, var(--stroke-natural-width));
+  }
+  .hero-slogan.stroke-text { white-space: normal; text-wrap: balance; }
+  .threads-background canvas {
+    opacity: 0.14;
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2037,10 +2369,46 @@ code {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .stroke-text-char {
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+  .stroke-text[data-shiny-after-fill] .stroke-text-char {
+    opacity: 0 !important;
+  }
+  .stroke-text-fill-wipe { transform: none !important; }
+  .stroke-text-shiny-fill { opacity: 1 !important; }
+  .reveal-enter { animation: none !important; }
+  .specular-button,
+  .specular-button:hover,
+  .specular-button:active { transform: none !important; }
+  .specular-button::before,
+  .specular-button::after { display: none !important; }
 }
 
 @media (forced-colors: active) {
-  .site-header,
-  .site-nav { background: Canvas; }
+  .site-header-inner,
+  .site-nav { background: Canvas; border-color: CanvasText; box-shadow: none; }
   .brand-mark { forced-color-adjust: none; }
+  .stroke-text-svg { filter: none !important; }
+  .stroke-text-char {
+    stroke: CanvasText;
+    stroke-dashoffset: 0;
+  }
+  .stroke-text-fill {
+    fill: CanvasText;
+  }
+  .stroke-text-shiny-fill {
+    fill: CanvasText !important;
+    opacity: 1;
+  }
+  .specular-button {
+    background: ButtonFace;
+    color: ButtonText;
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+  .specular-button::before,
+  .specular-button::after { display: none; }
+  .specular-button:disabled { color: GrayText; border-color: GrayText; }
 }
