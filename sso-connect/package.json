@@ -1,6 +1,6 @@
 {
   "name": "@zeroone/sso-connect",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "零一智鉴一键式商家 SSO 对接模块",
   "type": "module",

@@ -314,6 +314,12 @@ export function createPlatformApp({
     try {
       const integration = repository.getIntegration(req.params.id);
       if (!integration) return res.status(404).render('error', { title: '商家不存在', message: '未找到该商家接入配置。' });
+      if (!['ready', 'ready_for_test', 'enabled'].includes(integration.status)) {
+        return res.status(409).render('error', {
+          title: '商家尚未完成接入',
+          message: '请先完成配置检查，再发起一键登录。',
+        });
+      }
 
       if (integration.kind !== 'handoff') {
         return res.redirect(integration.start_url || `${integration.normalized_origin}/login`);

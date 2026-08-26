@@ -1,4 +1,12 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import {
+  chmodSync,
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+} from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import express from 'express';
@@ -35,8 +43,17 @@ function cookieOptions(config, maxAge) {
 }
 
 function initializeDemoDatabase(filename) {
-  const db = new DatabaseSync(filename);
-  db.exec(`
+  const resolved = resolve(filename);
+  const directory = dirname(resolved);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(directory, 0o700);
+  const previousUmask = process.umask(0o077);
+  let db;
+  try {
+    closeSync(openSync(resolved, 'a', 0o600));
+    chmodSync(resolved, 0o600);
+    db = new DatabaseSync(resolved);
+    db.exec(`
     PRAGMA journal_mode = WAL;
     PRAGMA foreign_keys = ON;
     PRAGMA busy_timeout = 5000;
@@ -79,8 +96,15 @@ function initializeDemoDatabase(filename) {
       expires_at INTEGER NOT NULL,
       consumed_at INTEGER
     ) STRICT;
-  `);
-  return db;
+    `);
+    for (const suffix of ['', '-wal', '-shm']) {
+      const candidate = `${resolved}${suffix}`;
+      if (existsSync(candidate)) chmodSync(candidate, 0o600);
+    }
+    return db;
+  } finally {
+    process.umask(previousUmask);
+  }
 }
 
 function upsertMerchantUser(db, claims, issuer) {
@@ -226,6 +250,15 @@ export function createDemoMerchant({ config, publicDir, viewsDir }) {
         issuer: stored.issuer,
         audience: config.demoMerchantOrigin,
       });
+      if (
+        typeof payload.jti !== 'string'
+        || payload.jti.length < 8
+        || typeof payload.sub !== 'string'
+        || payload.sub.length === 0
+        || typeof payload.exp !== 'number'
+      ) {
+        return res.status(401).json({ success: false, error: 'invalid handoff claims' });
+      }
       const jtiHash = hash(payload.jti);
       const consumed = db.prepare('SELECT 1 FROM consumed_jtis WHERE jti_hash = ?').get(jtiHash);
       if (consumed) return res.status(409).json({ success: false, error: 'replayed jti' });

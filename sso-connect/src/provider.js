@@ -6,6 +6,12 @@ function randomId(prefix, bytes = 18) {
   return `${prefix}_${randomBytes(bytes).toString('base64url')}`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+}
+
 function pairwiseSubject(salt, accountId, client) {
   const sector = client.sectorIdentifier || client.clientId;
   return createHmac('sha256', Buffer.from(salt, 'base64url'))
@@ -87,6 +93,10 @@ export function createOidcProvider({ config, database, Adapter, secrets }) {
       },
     },
     responseTypes: ['code'],
+    renderError(ctx, out) {
+      ctx.type = 'html';
+      ctx.body = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>SSO 授权失败 · 零一智鉴</title></head><body><main><h1>SSO 授权失败</h1><p>${escapeHtml(out.error_description || out.error)}</p><a href="/connect">返回接入页</a></main></body></html>`;
+    },
     routes: {
       authorization: '/oauth/authorize',
       jwks: '/.well-known/jwks.json',
