@@ -1,3 +1,543 @@
+// Theme preference: the tiny head bootstrap prevents a flash; this controller
+// owns the visible toggle, persistence, and live system-preference changes.
+(function () {
+  const root = document.documentElement;
+  const toggle = document.querySelector('.theme-toggle');
+  const storageKey = 'zeroone_theme';
+  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function storedTheme() {
+    try {
+      const value = localStorage.getItem(storageKey);
+      return value === 'light' || value === 'dark' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function syncControl(theme) {
+    if (!toggle) return;
+    const isDark = theme === 'dark';
+    const nextLabel = isDark ? '切换为浅色模式' : '切换为深色模式';
+    toggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+    toggle.setAttribute('aria-label', nextLabel);
+    toggle.title = nextLabel;
+    const label = toggle.querySelector('.theme-toggle-label');
+    if (label) label.textContent = isDark ? '外观 · 深色' : '外观 · 浅色';
+  }
+
+  function applyTheme(theme, persist) {
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+    syncControl(theme);
+    if (!persist) return;
+    try { localStorage.setItem(storageKey, theme); } catch { /* Preference is optional. */ }
+  }
+
+  syncControl(root.dataset.theme || (systemTheme.matches ? 'dark' : 'light'));
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+    });
+  }
+
+  const onSystemChange = (event) => {
+    if (!storedTheme()) applyTheme(event.matches ? 'dark' : 'light', false);
+  };
+  if (systemTheme.addEventListener) systemTheme.addEventListener('change', onSystemChange);
+  else if (systemTheme.addListener) systemTheme.addListener(onSystemChange);
+})();
+
+
+// Native Threads background for the Jinja site. It matches the requested
+// amplitude=1, distance=0 and pointer interaction without adding React/OGL.
+(function () {
+  const container = document.querySelector('[data-threads]');
+  if (!container) return;
+
+  const canvas = document.createElement('canvas');
+  const gl = canvas.getContext('webgl', {alpha: true, antialias: false});
+  if (!gl) return;
+  container.appendChild(canvas);
+
+  const vertexSource = `
+    attribute vec2 aPosition;
+    void main() { gl_Position = vec4(aPosition, 0.0, 1.0); }
+  `;
+  const fragmentSource = `
+    precision highp float;
+    uniform float uTime;
+    uniform vec2 uResolution;
+    uniform vec3 uColor;
+    uniform float uAmplitude;
+    uniform float uDistance;
+    uniform vec2 uMouse;
+
+    const float PI = 3.1415926538;
+    const int LINE_COUNT = 40;
+    const float LINE_WIDTH = 7.0;
+    const float LINE_BLUR = 10.0;
+
+    float perlin2D(vec2 point) {
+      vec2 cell = floor(point);
+      vec4 local = point.xyxy - vec4(cell, cell + 1.0);
+      vec4 lattice = vec4(cell.xy, cell.xy + 1.0);
+      lattice = lattice - floor(lattice * (1.0 / 71.0)) * 71.0;
+      lattice += vec2(26.0, 161.0).xyxy;
+      lattice *= lattice;
+      lattice = lattice.xzxz * lattice.yyww;
+      vec4 gradX = fract(lattice * (1.0 / 951.135664)) - 0.49999;
+      vec4 gradY = fract(lattice * (1.0 / 642.949883)) - 0.49999;
+      vec4 gradients = inversesqrt(gradX * gradX + gradY * gradY)
+        * (gradX * local.xzxz + gradY * local.yyww);
+      gradients *= 1.4142135623730950;
+      vec2 blend = local.xy * local.xy * local.xy
+        * (local.xy * (local.xy * 6.0 - 15.0) + 10.0);
+      vec4 weights = vec4(blend, vec2(1.0 - blend));
+      return dot(gradients, weights.zxzx * weights.wwyy);
+    }
+
+    float pixel(float count) {
+      return (1.0 / max(uResolution.x, uResolution.y)) * count;
+    }
+
+    float threadLine(vec2 uv, float width, float progress) {
+      float splitPoint = 0.1 + progress * 0.4;
+      float amplitudeNormal = smoothstep(splitPoint, 0.7, uv.x);
+      float finalAmplitude = amplitudeNormal * 0.5 * uAmplitude
+        * (1.0 + (uMouse.y - 0.5) * 0.2);
+      float scaledTime = uTime / 10.0 + (uMouse.x - 0.5);
+      float blur = smoothstep(splitPoint, splitPoint + 0.05, uv.x) * progress;
+      float xNoise = mix(
+        perlin2D(vec2(scaledTime, uv.x + progress) * 2.5),
+        perlin2D(vec2(scaledTime, uv.x + scaledTime) * 3.5) / 1.5,
+        uv.x * 0.3
+      );
+      float y = 0.5 + (progress - 0.5) * uDistance
+        + xNoise * 0.5 * finalAmplitude;
+      float start = smoothstep(
+        y + width * 0.5 + LINE_BLUR * pixel(1.0) * blur,
+        y,
+        uv.y
+      );
+      float end = smoothstep(
+        y,
+        y - width * 0.5 - LINE_BLUR * pixel(1.0) * blur,
+        uv.y
+      );
+      return clamp(
+        (start - end) * (1.0 - smoothstep(0.0, 1.0, pow(progress, 0.3))),
+        0.0,
+        1.0
+      );
+    }
+
+    void main() {
+      vec2 uv = gl_FragCoord.xy / uResolution;
+      float lineStrength = 1.0;
+      for (int i = 0; i < LINE_COUNT; i++) {
+        float progress = float(i) / float(LINE_COUNT);
+        float width = LINE_WIDTH * pixel(1.0) * (1.0 - progress);
+        lineStrength *= (1.0 - threadLine(uv, width, progress));
+      }
+      float colorValue = 1.0 - lineStrength;
+      gl_FragColor = vec4(uColor * colorValue, colorValue);
+    }
+  `;
+
+  function compile(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
+    gl.deleteShader(shader);
+    return null;
+  }
+
+  const vertex = compile(gl.VERTEX_SHADER, vertexSource);
+  const fragment = compile(gl.FRAGMENT_SHADER, fragmentSource);
+  if (!vertex || !fragment) return;
+
+  const program = gl.createProgram();
+  gl.attachShader(program, vertex);
+  gl.attachShader(program, fragment);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+  gl.useProgram(program);
+
+  const buffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+  const position = gl.getAttribLocation(program, 'aPosition');
+  gl.enableVertexAttribArray(position);
+  gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+  const uniforms = {
+    time: gl.getUniformLocation(program, 'uTime'),
+    resolution: gl.getUniformLocation(program, 'uResolution'),
+    color: gl.getUniformLocation(program, 'uColor'),
+    amplitude: gl.getUniformLocation(program, 'uAmplitude'),
+    distance: gl.getUniformLocation(program, 'uDistance'),
+    mouse: gl.getUniformLocation(program, 'uMouse')
+  };
+  const amplitude = 1;
+  const distance = 0;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let mouse = [0.5, 0.5];
+  let targetMouse = [0.5, 0.5];
+  let color = [1, 1, 1];
+
+  function syncColor() {
+    const values = getComputedStyle(document.documentElement)
+      .getPropertyValue('--threads-color')
+      .split(',')
+      .map(value => Number(value.trim()) / 255);
+    color = values.length === 3 && values.every(Number.isFinite) ? values : [1, 1, 1];
+  }
+
+  function resize() {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    const baseDpr = Math.min(window.devicePixelRatio || 1, 2);
+    const longest = Math.max(width, height) * baseDpr;
+    const dpr = longest > 1920 ? (baseDpr * 1920) / longest : baseDpr;
+    canvas.width = Math.max(1, Math.round(width * dpr));
+    canvas.height = Math.max(1, Math.round(height * dpr));
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+
+  function draw(time) {
+    mouse[0] += (targetMouse[0] - mouse[0]) * 0.05;
+    mouse[1] += (targetMouse[1] - mouse[1]) * 0.05;
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1f(uniforms.time, time * 0.001);
+    gl.uniform2f(uniforms.resolution, canvas.width, canvas.height);
+    gl.uniform3f(uniforms.color, color[0], color[1], color[2]);
+    gl.uniform1f(uniforms.amplitude, amplitude);
+    gl.uniform1f(uniforms.distance, distance);
+    gl.uniform2f(uniforms.mouse, mouse[0], mouse[1]);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+
+  let frameId = 0;
+  function frame(time) {
+    frameId = 0;
+    if (document.hidden || reducedMotion.matches) {
+      draw(0);
+      return;
+    }
+    draw(time);
+    schedule();
+  }
+
+  function schedule() {
+    if (!frameId) frameId = window.requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('pointermove', event => {
+    targetMouse = [event.clientX / window.innerWidth, 1 - event.clientY / window.innerHeight];
+  }, {passive: true});
+  window.addEventListener('resize', resize, {passive: true});
+  new MutationObserver(syncColor).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-theme']
+  });
+  document.addEventListener('visibilitychange', schedule);
+  if (reducedMotion.addEventListener) reducedMotion.addEventListener('change', schedule);
+
+  syncColor();
+  resize();
+  draw(0);
+  schedule();
+})();
+
+
+// Reference-style navbar: transparent at the top, compact glass capsule after
+// the first scroll. requestAnimationFrame prevents scroll-handler layout churn.
+(function () {
+  const header = document.querySelector('.site-header');
+  if (!header) return;
+  let queued = false;
+
+  function update() {
+    header.classList.toggle('is-scrolled', window.scrollY > 24);
+    queued = false;
+  }
+
+  window.addEventListener('scroll', () => {
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(update);
+  }, {passive: true});
+  update();
+})();
+
+
+// Native StrokeText adaptation for the two Hub display lines. Source text stays
+// readable without JavaScript; enhancement adds a neutral 4s forward + 4s return shine.
+(function () {
+  const elements = Array.from(document.querySelectorAll('[data-stroke-text]'));
+  if (!elements.length) return;
+
+  const namespace = 'http://www.w3.org/2000/svg';
+  const drawDuration = 1;
+  const fillDelay = 0.15;
+  const stagger = 0.035;
+  const strokeWidth = 1.1;
+  const fontWeight = 800;
+  const defaultLetterSpacing = -4;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function createSvgElement(name, attributes = {}) {
+    const node = document.createElementNS(namespace, name);
+    Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+    return node;
+  }
+
+  function enhance(element, elementIndex) {
+    const text = element.textContent.trim();
+    if (!text) return;
+
+    const fontSize = Number(element.dataset.fontSize);
+    const letterSpacing = Number(element.dataset.letterSpacing || defaultLetterSpacing);
+    const characters = Array.from(text);
+    const padding = Math.max(6, fontSize * 0.08);
+    const baseline = fontSize + padding;
+    const fillStart = drawDuration + Math.max(0, characters.length - 1) * stagger + fillDelay;
+    const fillEnd = fillStart + drawDuration;
+    const idBase = `stroke-text-${elementIndex}`;
+
+    const accessible = document.createElement('span');
+    accessible.className = 'stroke-text-accessible';
+    accessible.textContent = text;
+
+    const visual = document.createElement('span');
+    visual.className = 'stroke-text-visual';
+    visual.setAttribute('aria-hidden', 'true');
+
+    const svg = createSvgElement('svg', {
+      class: 'stroke-text-svg',
+      preserveAspectRatio: 'xMidYMid meet',
+      focusable: 'false'
+    });
+    const definitions = createSvgElement('defs');
+    const mask = createSvgElement('mask', {
+      id: `${idBase}-fill-mask`,
+      maskUnits: 'userSpaceOnUse'
+    });
+    const wipe = createSvgElement('rect', {
+      class: 'stroke-text-fill-wipe',
+      fill: '#ffffff'
+    });
+    mask.appendChild(wipe);
+    definitions.appendChild(mask);
+    svg.appendChild(definitions);
+
+    const textAttributes = {
+      x: padding,
+      y: baseline,
+      'font-size': fontSize,
+      'font-weight': fontWeight,
+      'letter-spacing': letterSpacing,
+      'xml:space': 'preserve'
+    };
+    const fill = createSvgElement('text', {
+      ...textAttributes,
+      class: 'stroke-text-fill',
+      mask: `url(#${idBase}-fill-mask)`
+    });
+    fill.textContent = text;
+    svg.appendChild(fill);
+
+    let shinyFill = null;
+    if (element.hasAttribute('data-shiny-after-fill')) {
+      const gradient = createSvgElement('linearGradient', {
+        id: `${idBase}-shiny`,
+        gradientUnits: 'userSpaceOnUse'
+      });
+      [
+        ['0%', 'var(--shiny-base)'],
+        ['40%', 'var(--shiny-base)'],
+        ['50%', 'var(--shiny-highlight)'],
+        ['60%', 'var(--shiny-base)'],
+        ['100%', 'var(--shiny-base)']
+      ].forEach(([offset, color]) => {
+        gradient.appendChild(createSvgElement('stop', {'offset': offset, 'stop-color': color}));
+      });
+      definitions.appendChild(gradient);
+      shinyFill = createSvgElement('text', {
+        ...textAttributes,
+        class: 'stroke-text-fill stroke-text-shiny-fill',
+        mask: `url(#${idBase}-fill-mask)`
+      });
+      shinyFill.style.setProperty('--stroke-shiny-fill', `url(#${idBase}-shiny)`);
+      shinyFill.textContent = text;
+      svg.appendChild(shinyFill);
+    }
+
+    visual.appendChild(svg);
+    element.replaceChildren(accessible, visual);
+    element.classList.add('is-enhanced');
+
+    const bounds = fill.getBBox();
+    const viewX = bounds.x - padding;
+    const viewY = bounds.y - padding;
+    const viewWidth = bounds.width + padding * 2;
+    const viewHeight = bounds.height + padding * 2;
+    svg.setAttribute('viewBox', `${viewX} ${viewY} ${viewWidth} ${viewHeight}`);
+    svg.setAttribute('width', viewWidth);
+    svg.setAttribute('height', viewHeight);
+    visual.style.setProperty('--stroke-natural-width', `${viewWidth}px`);
+    wipe.setAttribute('x', viewX);
+    wipe.setAttribute('y', viewY);
+    wipe.setAttribute('width', viewWidth);
+    wipe.setAttribute('height', viewHeight);
+    element.style.setProperty('--fill-delay', `${fillStart}s`);
+    element.style.setProperty('--shiny-delay', `${fillEnd}s`);
+
+    characters.forEach((character, characterIndex) => {
+      if (/\s/.test(character)) return;
+      const start = fill.getStartPositionOfChar(characterIndex);
+      const outline = createSvgElement('text', {
+        x: start.x,
+        y: baseline,
+        class: 'stroke-text-char',
+        'font-size': fontSize,
+        'font-weight': fontWeight,
+        'xml:space': 'preserve'
+      });
+      outline.textContent = character;
+      outline.style.setProperty('--stroke-delay', `${characterIndex * stagger}s`);
+      outline.style.setProperty('stroke-width', `${strokeWidth}px`);
+      svg.appendChild(outline);
+    });
+
+    if (shinyFill && !reducedMotion.matches) {
+      const gradient = definitions.querySelector('linearGradient');
+      gradient.setAttribute('x1', bounds.x - bounds.width);
+      gradient.setAttribute('x2', bounds.x + bounds.width);
+      gradient.setAttribute('y1', '0');
+      gradient.setAttribute('y2', '0');
+      const flow = createSvgElement('animateTransform', {
+        attributeName: 'gradientTransform',
+        type: 'translate',
+        values: `0 0; ${bounds.width} 0; 0 0`,
+        keyTimes: '0; 0.5; 1',
+        dur: '8s',
+        begin: `${fillEnd}s`,
+        repeatCount: 'indefinite',
+        calcMode: 'linear'
+      });
+      gradient.appendChild(flow);
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => element.classList.add('is-running'));
+    });
+  }
+
+  const mount = () => elements.forEach(enhance);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(mount);
+  } else {
+    mount();
+  }
+})();
+
+
+// Pointer-following specular highlight. Only explicitly approved CTA elements
+// opt in; no node is wrapped or replaced, so existing click/loading hooks stay intact.
+(function () {
+  const buttons = Array.from(document.querySelectorAll('.specular-button'));
+  if (!buttons.length) return;
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+  const proximity = 250;
+  let pointer = null;
+  let queued = false;
+
+  function clear() {
+    buttons.forEach((button) => button.style.setProperty('--shine-opacity', '0'));
+  }
+
+  function render() {
+    queued = false;
+    if (!pointer || reducedMotion.matches || !finePointer.matches) {
+      clear();
+      return;
+    }
+    buttons.forEach((button) => {
+      if (button.disabled || button.getAttribute('aria-disabled') === 'true') {
+        button.style.setProperty('--shine-opacity', '0');
+        return;
+      }
+      const rect = button.getBoundingClientRect();
+      const nearestX = Math.max(rect.left, Math.min(pointer.x, rect.right));
+      const nearestY = Math.max(rect.top, Math.min(pointer.y, rect.bottom));
+      const distance = Math.hypot(pointer.x - nearestX, pointer.y - nearestY);
+      const intensity = Math.max(0, 1 - distance / proximity);
+      button.style.setProperty('--shine-x', `${nearestX - rect.left}px`);
+      button.style.setProperty('--shine-y', `${nearestY - rect.top}px`);
+      button.style.setProperty('--shine-opacity', intensity.toFixed(3));
+    });
+  }
+
+  function schedule() {
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(render);
+  }
+
+  document.addEventListener('pointermove', (event) => {
+    pointer = {x: event.clientX, y: event.clientY};
+    schedule();
+  }, {passive: true});
+  window.addEventListener('scroll', () => { pointer = null; schedule(); }, {passive: true});
+  window.addEventListener('blur', () => { pointer = null; schedule(); });
+  const syncPreference = () => { pointer = null; schedule(); };
+  if (reducedMotion.addEventListener) reducedMotion.addEventListener('change', syncPreference);
+  if (finePointer.addEventListener) finePointer.addEventListener('change', syncPreference);
+})();
+
+
+// Scroll reveal is progressive enhancement: content is visible by default and
+// receives a single entrance animation only when it first crosses the viewport.
+(function () {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (reducedMotion.matches || !('IntersectionObserver' in window)) return;
+
+  const selector = [
+    '.trust-strip', '.protocol-card', '.how-it-works > h2', '.how-steps > li',
+    '.hub-note', '.features > .feature',
+    '.lb-row', '.faq-category', '.result-card', '.metrics-row', '.details-card'
+  ].join(', ');
+  const targets = Array.from(document.querySelectorAll(selector))
+    .filter((element) => element.getBoundingClientRect().top >= window.innerHeight * 0.9);
+  if (!targets.length) return;
+
+  const siblingOrder = new Map();
+  targets.forEach((element) => {
+    const parent = element.parentElement;
+    const order = siblingOrder.get(parent) || 0;
+    element.style.setProperty('--reveal-delay', `${Math.min(order, 3) * 45}ms`);
+    siblingOrder.set(parent, order + 1);
+  });
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      const element = entry.target;
+      element.classList.add('reveal-enter');
+      element.addEventListener('animationend', () => element.classList.remove('reveal-enter'), {once: true});
+      observer.unobserve(element);
+    });
+  }, {threshold: 0.08, rootMargin: '0px 0px -8% 0px'});
+  targets.forEach((element) => observer.observe(element));
+})();
+
+
 // Mobile nav hamburger toggle. Pure aria-expanded toggling; CSS does the
 // rest via the sibling selector. Closes on outside tap, on ESC, and on
 // link tap so the dropdown doesn't linger after navigation.
