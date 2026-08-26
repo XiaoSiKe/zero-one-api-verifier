@@ -38,8 +38,8 @@ npm run demo
 如果首次 Client Secret 响应因断网等原因丢失，可在技术参数中选择“重新生成 Client Secret”；旧密钥会立即失效。
 
 - 标准自研客户端与演示商家：强制 PKCE S256。
-- New API `v1.0.0-rc.25`：使用 Client Secret 兼容其当前无 PKCE 的实现。
-- One API `v0.6.10`：除无 PKCE兼容外，使用独立 JSON Token 适配入口。
+- New API `v1.0.0-rc.25@f116414`：使用 Client Secret 兼容其当前无 PKCE 的实现。真实镜像已完成登录回路；商家必须同时把「服务器地址」设为公开站点 Origin，否则 New API 会用 `http://localhost:3000/oauth/oidc` 换 Token，并因 Redirect URI 不匹配被拒绝。
+- One API `v0.6.10@3915ce9`：无 PKCE + JSON Token 适配入口的 Wire/API 流程已通过。但官方镜像内置前端不包含 OIDC 登录按钮和 `/oauth/oidc` 回调路由，因此该固定版本不宣称完整 UI 端到端兼容。需升级 One API 或补上前端登录/回调页。
 - 不支持 OIDC 的自研站：可实现一个 RS256 signed handoff 接口作为兜底；该模式不是 OIDC。
 
 New API/One API 的不同版本仍需用目标实例进行最终联调。当前脚手架不会索取商家管理员 Token，也不会尝试修改任意远端后台。
