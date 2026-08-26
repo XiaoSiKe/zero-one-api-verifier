@@ -1,0 +1,24 @@
+<%- include('layout', { pageTitle: '完成邀请注册', pageKind: 'invite-register', csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<%
+  const registerAction = typeof formAction !== 'undefined' ? formAction : '';
+  const inviteCodeValue = typeof inviteCode !== 'undefined' ? inviteCode : '';
+%>
+
+<section class="surface auth" aria-labelledby="page-title">
+  <header class="page-heading">
+    <p class="step-label">本地邀请演示</p>
+    <h1 id="page-title">完成模拟账号验证</h1>
+    <p>用于验证邀请统计链路，不会发送真实邮件。</p>
+  </header>
+  <form method="post" action="<%= registerAction %>">
+    <input type="hidden" name="invite_code" value="<%= inviteCodeValue %>">
+    <input type="hidden" name="csrfToken" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <div class="field">
+      <label for="invite-email">演示邮箱</label>
+      <input id="invite-email" type="email" name="email" placeholder="new-user@example.com" autocomplete="email" required>
+    </div>
+    <button class="button button--primary button--full" type="submit">注册并模拟验证</button>
+  </form>
+</section>
+
+<%- include('layout-end') %>

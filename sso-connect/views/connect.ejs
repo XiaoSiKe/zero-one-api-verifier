@@ -1,0 +1,114 @@
+<%- include('layout', { pageTitle: '接入 SSO', pageKind: 'connect', csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : '' }) %>
+<%
+  const isDemo = typeof demo !== 'undefined' ? Boolean(demo) : false;
+  const initialSite = typeof siteUrl !== 'undefined'
+    ? siteUrl
+    : (isDemo ? 'http://127.0.0.1:8021' : '');
+  const oidcIssuer = typeof issuer !== 'undefined' ? issuer : '';
+%>
+
+<section
+  class="surface setup"
+  data-connect-app
+  data-demo="<%= isDemo ? '1' : '0' %>"
+  data-issuer="<%= oidcIssuer %>"
+  aria-labelledby="page-title"
+>
+  <header class="page-heading">
+    <p class="step-label" id="step-label">自动配置</p>
+    <h1 id="page-title">连接你的站点</h1>
+    <p id="page-description">填写站点地址，剩下的我们来完成。</p>
+  </header>
+
+  <div class="stage" id="stage-input">
+    <form id="connect-form" action="/api/integrations" method="post" novalidate>
+      <div class="field">
+        <label for="site-url">你的站点地址</label>
+        <input
+          id="site-url"
+          name="site_url"
+          type="url"
+          value="<%= initialSite %>"
+          placeholder="https://example.com"
+          autocomplete="url"
+          inputmode="url"
+          spellcheck="false"
+          required
+          aria-describedby="site-help"
+        >
+        <p class="field-help" id="site-help">我们会自动识别 New API、One API 或标准 OIDC。</p>
+      </div>
+
+      <fieldset class="type-picker" id="type-picker" hidden>
+        <legend>没有识别出站点类型，请选择</legend>
+        <label><input type="radio" name="type" value="new-api"> New API</label>
+        <label><input type="radio" name="type" value="one-api"> One API</label>
+        <label><input type="radio" name="type" value="oidc"> 自研 OIDC</label>
+        <label><input type="radio" name="type" value="handoff"> 签名接口</label>
+      </fieldset>
+
+      <button class="button button--primary button--full" id="connect-submit" type="submit">
+        自动接入
+      </button>
+    </form>
+  </div>
+
+  <div class="stage status-stage" id="stage-working" hidden aria-busy="true">
+    <span class="progress-mark" aria-hidden="true"></span>
+    <div>
+      <h2 id="working-title">正在识别站点</h2>
+      <p id="working-description">通常只需要几秒。</p>
+    </div>
+  </div>
+
+  <div class="stage" id="stage-config" hidden>
+    <div class="instruction">
+      <h2>粘贴并保存这份配置</h2>
+      <p>打开商家后台的 OAuth / OIDC 设置，粘贴后保存。</p>
+    </div>
+
+    <div class="copy-block">
+      <textarea id="config-text" rows="8" readonly aria-label="SSO 配置"></textarea>
+      <button class="button button--secondary copy-button" type="button" data-copy-target="config-text">
+        复制配置
+      </button>
+    </div>
+
+    <details class="technical-details">
+      <summary>查看技术参数</summary>
+      <dl id="technical-fields"></dl>
+      <p class="secret-note" id="secret-note" hidden>Client Secret 只显示这一次，请立即保存；丢失后只能轮换。</p>
+      <p class="compatibility-note" id="compatibility-note" hidden>此模板使用 Client Secret 兼容旧版商家，未启用 PKCE。仅应在受控模板中使用。</p>
+      <button class="text-link text-button" id="rotate-secret" type="button">重新生成 Client Secret</button>
+    </details>
+
+    <button class="button button--primary button--full" id="check-button" type="button">
+      我已保存，自动检查
+    </button>
+  </div>
+
+  <div class="stage" id="stage-ready" hidden>
+    <div class="result-mark result-mark--success" aria-hidden="true">✓</div>
+    <h2>已检测到 OIDC 配置</h2>
+    <p>继续完成一次真实登录；成功后才会启用。</p>
+    <a class="button button--primary button--full" id="test-login" href="#">测试一键登录</a>
+  </div>
+
+  <div class="stage" id="stage-done" hidden>
+    <div class="result-mark result-mark--success" aria-hidden="true">✓</div>
+    <h2>已接入，可一键登录</h2>
+    <p>首次进入会自动建号，之后会复用同一个商家账号。</p>
+    <a class="button button--primary button--full" id="enter-merchant" href="#">进入商家</a>
+    <a class="text-link" href="/invites">查看邀请注册统计</a>
+  </div>
+
+  <div class="inline-error" id="connect-error" role="alert" hidden>
+    <strong>暂时没有接通</strong>
+    <span id="connect-error-message">请检查站点地址后重试。</span>
+  </div>
+
+  <p class="sr-only" id="live-status" role="status" aria-live="polite" aria-atomic="true"></p>
+</section>
+
+<p class="page-footnote">本地演示使用模拟账号验证；生产环境必须使用 HTTPS 和真实身份系统。</p>
+<%- include('layout-end') %>

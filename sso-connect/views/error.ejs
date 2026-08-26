@@ -1,0 +1,19 @@
+<%- include('layout', { pageTitle: '操作失败', pageKind: 'error' }) %>
+<%
+  const errorTitle = typeof title !== 'undefined' ? title : '暂时无法完成操作';
+  const errorMessage = typeof message !== 'undefined' ? message : '请返回后重试。';
+  const errorCode = typeof code !== 'undefined' ? code : '';
+  const returnUrl = typeof backUrl !== 'undefined' ? backUrl : '/connect';
+%>
+
+<section class="surface error-page" aria-labelledby="page-title">
+  <div class="result-mark result-mark--error" aria-hidden="true">!</div>
+  <header class="page-heading page-heading--compact">
+    <h1 id="page-title"><%= errorTitle %></h1>
+    <p><%= errorMessage %></p>
+  </header>
+  <% if (errorCode) { %><p class="error-code">错误代码：<code><%= errorCode %></code></p><% } %>
+  <a class="button button--primary button--full" href="<%= returnUrl %>">返回重试</a>
+</section>
+
+<%- include('layout-end') %>
