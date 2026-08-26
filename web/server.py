@@ -2,28 +2,37 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-import os
 import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi import Response as FastAPIResponse
 from fastapi.responses import (
-    HTMLResponse, JSONResponse, RedirectResponse, Response,
+    HTMLResponse,
+    JSONResponse,
+    Response,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from relay_detector.models import Protocol
+from relay_detector.protocols.resolve import protocol_from_model
+
 from . import jobs, leaderboard
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .image_report import render_report_jpg
+from .paths import WISHLIST_PATH, report_dirs
 from .probe import probe_model_alive, probe_relay
 from .ratelimit import check_rate
-
+from .target_safety import (
+    UnsafeTargetError,
+    build_safe_transport,
+    validate_target_url,
+)
 
 HERE = Path(__file__).resolve().parent
 TEMPLATE_DIR = HERE / "templates"
@@ -59,18 +68,9 @@ async def no_html_cache(request: Request, call_next):
 _VALID_MODES = {"quick", "standard", "full"}
 _VALID_WISHLIST_PROTOCOLS = {"openai", "gemini"}
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-WISHLIST_PATH = Path(
-    os.environ.get("VERIDROP_WISHLIST_PATH", "/opt/veridrop/web_data/wishlist.txt")
-)
-
-
 def _protocol_from_model(model: str) -> str:
-    normalized = model.strip().lower()
-    if normalized.startswith(("gemini-", "models/gemini-")):
-        return "gemini"
-    if normalized.startswith(("gpt-", "o1", "o3", "o4")):
-        return "openai"
-    return "anthropic"
+    protocol = protocol_from_model(model, default=Protocol.ANTHROPIC)
+    return protocol.value
 
 
 def _model_choices() -> list[dict[str, str]]:
@@ -260,10 +260,9 @@ async def api_wishlist(
 def _client_ip(request: Request) -> str:
     """Resolve the originating client IP.
 
-    uvicorn is started with --proxy-headers --forwarded-allow-ips=* so by the
-    time FastAPI sees the request, request.client.host is already the leftmost
-    X-Forwarded-For value (the real client). Fall back to "unknown" if the
-    request somehow lacks a client (shouldn't happen behind Caddy).
+    Production uvicorn trusts proxy headers only from loopback, so by the time
+    FastAPI sees the request, request.client.host is the address accepted from
+    the local reverse proxy. Fall back to "unknown" if no client is present.
     """
     return request.client.host if request.client else "unknown"
 
@@ -275,6 +274,56 @@ def _client_ip(request: Request) -> str:
 # one cheap upstream call out from this proxy" operations.
 _PROBE_RATE_LIMIT = 15
 _PROBE_RATE_WINDOW_S = 60.0
+_DETECT_RATE_LIMIT = 6
+_DETECT_RATE_WINDOW_S = 60.0
+_QUEUE_RETRY_AFTER_S = 15
+_PREFLIGHT_SEMA = asyncio.Semaphore(12)
+_PROBE_SEMA = asyncio.Semaphore(12)
+
+
+async def _validated_target_or_400(base_url: str) -> str:
+    try:
+        return await validate_target_url(base_url)
+    except UnsafeTargetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+async def _safe_transport_or_400(base_url: str, **kwargs):
+    try:
+        return await build_safe_transport(base_url, **kwargs)
+    except UnsafeTargetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _check_detect_rate(request: Request) -> None:
+    allowed, retry_after = check_rate(
+        f"detect:{_client_ip(request)}",
+        limit=_DETECT_RATE_LIMIT,
+        window_s=_DETECT_RATE_WINDOW_S,
+    )
+    if not allowed:
+        wait = int(retry_after) + 1
+        raise HTTPException(
+            status_code=429,
+            detail=f"检测提交过于频繁,请在 {wait} 秒后再试",
+            headers={"Retry-After": str(wait)},
+        )
+
+
+async def _submit_or_503(*args, headers: dict[str, str] | None = None, **kwargs) -> JSONResponse:
+    kwargs["revalidate_target"] = True
+    try:
+        job_id = await jobs.submit(*args, **kwargs)
+    except jobs.QueueFullError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+            headers={"Retry-After": str(_QUEUE_RETRY_AFTER_S)},
+        ) from exc
+    return JSONResponse(
+        {"job_id": job_id, "status_url": f"/api/status/{job_id}"},
+        headers=headers,
+    )
 
 
 async def _preflight_or_422(
@@ -297,8 +346,8 @@ async def _preflight_or_422(
         return
 
     ip = _client_ip(request)
-    allowed, retry_after = check_rate(
-        ip, limit=_PROBE_RATE_LIMIT, window_s=_PROBE_RATE_WINDOW_S
+    allowed, _retry_after = check_rate(
+        f"probe:{ip}", limit=_PROBE_RATE_LIMIT, window_s=_PROBE_RATE_WINDOW_S
     )
     if not allowed:
         # Rate limited preflight — DON'T block submission. The detector
@@ -306,21 +355,30 @@ async def _preflight_or_422(
         # skip the early-warning path until backoff expires.
         return
 
-    alive, err = await probe_model_alive(base_url, api_key, model, protocol)
+    transport = await _safe_transport_or_400(base_url)
+    async with _PREFLIGHT_SEMA:
+        alive, err = await probe_model_alive(
+            base_url,
+            api_key,
+            model,
+            protocol,
+            transport=transport,
+        )
     if alive:
         return
 
+    safe_model = jobs.redact_sensitive(model, (api_key,))
     raise HTTPException(
         status_code=422,
         detail={
             "code": "model_not_alive",
             "message": (
-                f"模型 {model} 在该中转站实际不可用。中转站把它列在 /v1/models "
+                f"模型 {safe_model} 在该中转站实际不可用。中转站把它列在 /v1/models "
                 "里,但真实请求被上游拒绝。"
             ),
-            "model": model,
+            "model": safe_model,
             "protocol": protocol,
-            "upstream_error": err or "",
+            "upstream_error": jobs.redact_sensitive(err or "", (api_key,)),
         },
     )
 
@@ -341,7 +399,7 @@ async def api_probe(
     """
     ip = _client_ip(request)
     allowed, retry_after = check_rate(
-        ip, limit=_PROBE_RATE_LIMIT, window_s=_PROBE_RATE_WINDOW_S
+        f"probe:{ip}", limit=_PROBE_RATE_LIMIT, window_s=_PROBE_RATE_WINDOW_S
     )
     if not allowed:
         wait = int(retry_after) + 1
@@ -359,26 +417,36 @@ async def api_probe(
     base_url = base_url.strip()
     api_key = api_key.strip()
 
-    if not base_url.startswith(("http://", "https://")):
-        return JSONResponse(
-            {"ok": False, "error": "base_url must start with http(s)://"},
-            status_code=200,
-        )
     if not api_key or len(api_key) < 8:
         return JSONResponse(
             {"ok": False, "error": "api_key looks invalid"},
             status_code=200,
         )
 
-    payload = await probe_relay(base_url, api_key)
-    return JSONResponse(payload)
+    try:
+        base_url = await validate_target_url(base_url)
+    except UnsafeTargetError as exc:
+        return JSONResponse(
+            {"ok": False, "auth_ok": True, "error": str(exc)},
+            status_code=400,
+        )
+
+    async with _PROBE_SEMA:
+        transport = await _safe_transport_or_400(
+            base_url,
+            max_response_bytes=1_000_000,
+        )
+        payload = jobs.redact_sensitive(
+            await probe_relay(base_url, api_key, transport=transport),
+            (api_key,),
+        )
+    return JSONResponse(jobs.redact_sensitive(payload))
 
 
 @app.post("/api/detect")
 @app.post("/api/detect/claude")
 async def api_detect_claude(
     request: Request,
-    response: FastAPIResponse,
     base_url: str = Form(...),
     api_key: str = Form(...),
     model: str = Form(...),
@@ -391,8 +459,6 @@ async def api_detect_claude(
     model = model.strip()
     mode = mode.strip().lower()
 
-    if not base_url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="base_url must start with http(s)://")
     if not api_key or len(api_key) < 8:
         raise HTTPException(status_code=400, detail="api_key looks invalid")
     # Permissive model validation: relays often expose custom names like
@@ -404,20 +470,24 @@ async def api_detect_claude(
         raise HTTPException(status_code=400, detail="model must be 1–200 chars")
     if mode not in _VALID_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {_VALID_MODES}")
+    _check_detect_rate(request)
+    base_url = await _validated_target_or_400(base_url)
 
     if request.url.path == "/api/detect":
-        response.headers["Deprecation"] = "true"
-        response.headers["Link"] = '</api/detect/claude>; rel="successor-version"'
+        legacy_headers = {
+            "Deprecation": "true",
+            "Link": '</api/detect/claude>; rel="successor-version"',
+        }
         inferred = _protocol_from_model(model)
         if inferred != "anthropic":
             await _preflight_or_422(request, base_url, api_key, model, inferred)
-            job_id = await jobs.submit(
+            return await _submit_or_503(
                 base_url, api_key, model, mode,
                 protocol=inferred,
                 include_long_context=include_long_context,
                 include_long_context_extreme=include_long_context_extreme,
+                headers=legacy_headers,
             )
-            return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
     elif _protocol_from_model(model) == "gemini":
         raise HTTPException(
             status_code=400,
@@ -430,14 +500,13 @@ async def api_detect_claude(
         )
 
     await _preflight_or_422(request, base_url, api_key, model, "anthropic")
-    job_id = await jobs.submit(
+    return await _submit_or_503(
         base_url, api_key, model, mode,
         protocol="anthropic",
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
+        headers=(legacy_headers if request.url.path == "/api/detect" else None),
     )
-    # NOTE: never echo api_key back in the response
-    return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
 
 
 @app.post("/api/detect/openai")
@@ -455,23 +524,22 @@ async def api_detect_openai(
     model = model.strip()
     mode = mode.strip().lower()
 
-    if not base_url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="base_url must start with http(s)://")
     if not api_key or len(api_key) < 8:
         raise HTTPException(status_code=400, detail="api_key looks invalid")
     if not model or len(model) > 200:
         raise HTTPException(status_code=400, detail="model must be 1–200 chars")
     if mode not in _VALID_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {_VALID_MODES}")
+    _check_detect_rate(request)
+    base_url = await _validated_target_or_400(base_url)
 
     await _preflight_or_422(request, base_url, api_key, model, "openai")
-    job_id = await jobs.submit(
+    return await _submit_or_503(
         base_url, api_key, model, mode,
         protocol="openai",
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
     )
-    return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
 
 
 @app.post("/api/detect/gemini")
@@ -487,18 +555,19 @@ async def api_detect_gemini(
     model = model.strip()
     mode = mode.strip().lower()
 
-    if not base_url.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="base_url must start with http(s)://")
     if not api_key or len(api_key) < 8:
         raise HTTPException(status_code=400, detail="api_key looks invalid")
     if not model or len(model) > 200:
         raise HTTPException(status_code=400, detail="model must be 1–200 chars")
     if mode not in _VALID_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {_VALID_MODES}")
+    _check_detect_rate(request)
+    base_url = await _validated_target_or_400(base_url)
 
     await _preflight_or_422(request, base_url, api_key, model, "gemini")
-    job_id = await jobs.submit(base_url, api_key, model, mode, protocol="gemini")
-    return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
+    return await _submit_or_503(
+        base_url, api_key, model, mode, protocol="gemini"
+    )
 
 
 @app.get("/api/status/{job_id}")
@@ -523,7 +592,7 @@ async def api_status(job_id: str) -> JSONResponse:
         payload["json_url"] = f"/api/result/{j.id}.json"
     elif j.status == "error":
         payload["error"] = j.error
-    return JSONResponse(payload)
+    return JSONResponse(jobs.redact_sensitive(payload))
 
 
 @app.get("/api/result/{job_id}.json")
@@ -628,7 +697,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     # Goes through is_valid_domain so a malformed base_url doesn't produce
     # a broken /leaderboard/{garbage} link.
     base_url = str(j.report.get("base_url") or "")
-    domain = leaderboard._extract_domain(base_url)  # noqa: SLF001
+    domain = leaderboard._extract_domain(base_url)
     if domain and not leaderboard.is_valid_domain(domain):
         domain = ""
     return templates.TemplateResponse(
@@ -683,12 +752,7 @@ _STATIC_SITEMAP_URLS = [
     ("https://01yapi.cc/faq",         "monthly", "0.8",  "faq.html"),
 ]
 
-_SITEMAP_REPORT_DIRS = [
-    Path("/opt/veridrop/web_data/jobs/anthropic"),
-    Path("/opt/veridrop/web_data/jobs/openai"),
-    Path("/opt/veridrop/web_data/jobs/gemini"),
-    Path("/opt/veridrop/web_data/jobs"),  # legacy top-level
-]
+_SITEMAP_REPORT_DIRS = report_dirs()
 
 
 def _template_lastmod(filename: str) -> str:
@@ -782,7 +846,7 @@ _DETECTOR_DISPLAY = {
     "anthropic": [
         ("identity", "身份一致性"),
         ("behavioral_signature", "行为签名验证"),
-        ("thinking_signature", "思维签名验证"),
+        ("thinking_signature", "思维签名形态"),
         ("consistency", "模型一致性"),
         ("knowledge", "知识准确度"),
         ("pdf", "PDF 文档识别"),

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Claude API 中转站真假检测 · thinking 签名加密验证 | 零一智鉴{% endblock %}
-{% block description %}免费检测 Claude API 中转站是不是真原生 — 利用 Anthropic 服务端 thinking signature(中转站无法伪造)+ 10 项辅助检测,并检查 Token 用量是否虚报。无需注册,API key 不留存,代码开源。{% endblock %}
+{% block title %}Claude API 中转站检测 · thinking 签名透传与多维证据 | 零一智鉴{% endblock %}
+{% block description %}免费检测 Claude API 中转站的透传风险 — 检查 thinking signature 透传形态 + 10 项辅助证据,并检查 Token 用量是否虚报。无需注册,API key 不留存,代码开源。{% endblock %}
 {% block og_title %}Claude API 中转站真假检测 · 1 分钟识破 Kiro / Amazon Q 等替身{% endblock %}
-{% block og_description %}加密级 thinking signature 验证 + 10 项辅助检测 + Token 用量虚报识别。免费、不留 key、可分享 JPG 报告。{% endblock %}
+{% block og_description %}thinking signature 透传形态 + 10 项多维检测 + Token 用量风险识别。免费、不留 key、可分享 JPG 报告。{% endblock %}
 {% block canonical %}https://01yapi.cc/claude{% endblock %}
 {% block og_url %}https://01yapi.cc/claude{% endblock %}
 
@@ -20,16 +20,16 @@
   "url": "https://01yapi.cc/claude",
   "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
   "featureList": [
-    "thinking signature 加密级真伪验证(业内独家)",
+    "thinking signature 透传形态与多维证据评估",
     "12 项独立检测维度(身份/行为/知识/PDF/工具调用/协议/流式/Token 用量/长上下文)",
     "字段级跟官方 Anthropic baseline 1:1 对比",
     "Stream / non-stream 一致性校验",
     "tool_use ID 前缀合规检查",
     "PDF 多模态能力检测",
-    "Kiro / Amazon Q / Bedrock 替身识别",
+    "Kiro / Amazon Q / Bedrock 类包装层风险证据",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "零一智鉴通过 Claude thinking signature 等 12 项检测维度,1 分钟内验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / Bedrock 等后端伪装的中转站,并检查 Token 用量是否虚报、长上下文窗口是否真实兑现。"
+  "description": "零一智鉴通过 Claude thinking signature 透传形态等 12 项检测维度,评估 AI API 中转站的身份、行为、能力与协议风险,发现 Kiro / Amazon Q / Bedrock 类包装层的可疑痕迹,并检查 Token 用量和长上下文兑现情况。"
 }
 </script>
 <script type="application/ld+json">
@@ -37,8 +37,8 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"Claude API 中转站怎么验证真假?","acceptedAnswer":{"@type":"Answer","text":"用 thinking signature 加密级验证 — Claude 启用扩展思考时返回 500-2000 字符的服务端加密签名,中转站理论上无法伪造。零一智鉴把这个作为 25% 权重的核心检测项,任何中转站若返回不出这个签名(或长度异常),即可判定为非真品 Claude。"}},
-    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 假冒 Claude 怎么识破?","acceptedAnswer":{"@type":"Answer","text":"Kiro / Amazon Q / Bedrock 是 Amazon 的 Claude 替身网关,响应没有 Claude thinking signature(它们走的是 AWS Bedrock 的简化接口,不返回服务端签名)。零一智鉴在 thinking_signature 检测上会直接判 0 分,fail 整体检测。"}},
+    {"@type":"Question","name":"Claude API 中转站怎么评估风险?","acceptedAnswer":{"@type":"Answer","text":"综合检查 thinking 块与 signature 的透传形态、身份回答、行为特征、能力和协议字段。signature 形态是高价值信号,但当前服务不做独立密码学验签,不能单独据此证明模型来源。"}},
+    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 包装层风险怎么发现?","acceptedAnswer":{"@type":"Answer","text":"这类 AWS 路由可能不透传 Claude thinking signature。零一智鉴会将字段缺失记为高风险证据,并结合身份、行为、能力和协议项综合判断,不把单一字段当作官方身份证明。"}},
     {"@type":"Question","name":"零一智鉴的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
     {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会,但成本极低。完整模式约发 16 个请求,Haiku 约 0.012 美元量级,Sonnet / Opus 更高。费用从你的 API key 对应中转站账户扣,零一智鉴自身不收费。"}},
     {"@type":"Question","name":"零一智鉴会偷我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"不会。API key 只存在 job 内存对象里,job 跑完(成功或失败)立即清空,不写报告 JSON、不写日志、不写磁盘。报告里 key 是脱敏形式 (sk-y7xU••••••0h)。代码完全开源可验证,也可以自己 clone 部署。"}},
@@ -50,7 +50,7 @@
 {
   "@context": "https://schema.org",
   "@type": "HowTo",
-  "name": "如何检测 Claude API 中转站是不是真原生",
+  "name": "如何评估 Claude API 中转站的透传风险",
   "totalTime": "PT1M",
   "estimatedCost": {"@type": "MonetaryAmount", "currency": "USD", "value": "0.02"},
   "step": [
@@ -59,7 +59,7 @@
     {"@type": "HowToStep", "name": "粘贴 API key", "text": "在 API 密钥框粘贴你的 sk-... key,只用于本次检测,不会被记录"},
     {"@type": "HowToStep", "name": "选模型 + 模式", "text": "下拉自动列出该 key 在该中转站可用的模型,选 standard 模式覆盖 9 项检测约 45 秒"},
     {"@type": "HowToStep", "name": "开始检测", "text": "点开始检测,等 30-75 秒拿到报告"},
-    {"@type": "HowToStep", "name": "看 thinking signature", "text": "重点看 thinking_signature 一项是否拿到 100 分 — 这是最强的真伪指标。0 分基本可判定为非真品 Claude"}
+    {"@type": "HowToStep", "name": "综合阅读证据", "text": "查看 thinking_signature 的透传形态,并结合身份、行为、能力与协议项判断整体风险,不要把单项分数当成官方认证"}
   ]
 }
 </script>
@@ -68,10 +68,10 @@
 {% block content %}
 
 <section class="hero">
-  <h1>这家 Claude API 中转站,是真原生吗?</h1>
+  <h1>这家 Claude API 中转站,透传风险有多高?</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>零一智鉴</strong>用 Claude <strong>thinking signature 加密级验证</strong>(Anthropic 服务端签名,中转站不可伪造)+ 10 项辅助检测,
-    <strong>1 分钟</strong>识别中转站是真原生透传,还是用 Kiro / Amazon Q / Bedrock 等替身伪装。免费、API key 不留存、代码开源。
+    <strong>零一智鉴</strong>用 Claude <strong>thinking signature 透传形态</strong> + 10 项身份、行为、能力与协议检测,
+    <strong>1 分钟</strong>综合身份、行为、能力和协议证据,发现 Kiro / Amazon Q / Bedrock 类包装层的可疑痕迹。免费、API key 不留存、代码开源。
   </p>
 </section>
 
@@ -151,15 +151,15 @@
 
 <section class="features">
   <div class="feature">
-    <h3>加密级真伪验证 ⭐</h3>
-    <p>利用 Claude thinking 块返回的服务端加密 <code>signature</code> 字段——任何中转站都<strong>物理上无法伪造</strong>,是零一智鉴最硬的鉴别指标。</p>
+    <h2>Thinking 签名透传形态 ⭐</h2>
+    <p>检查 Claude thinking 块与不透明 <code>signature</code> 字段是否被透传、长度形态是否符合预期。它是高价值协议证据,但不是独立验签或官方身份认证。</p>
   </div>
   <div class="feature">
-    <h3>字段级 baseline 对比</h3>
+    <h2>字段级 baseline 对比</h2>
     <p>逐字段比对 <code>input_tokens</code>、<code>tool_use</code> ID、SSE 事件序列、stream/non-stream 一致性,与官方 Anthropic 接口 1:1 对照。</p>
   </div>
   <div class="feature">
-    <h3>一键分享报告</h3>
+    <h2>一键分享报告</h2>
     <p>每次检测都有永久 URL 与可下载 JPG 图片,方便贴到群聊、论坛、文档,或在选购前做技术核验存档。</p>
   </div>
 </section>
@@ -181,19 +181,18 @@
   </div>
 
   <details class="faq-item" open>
-    <summary>thinking signature 是什么?为什么是真伪验证的金标准?</summary>
+    <summary>thinking signature 是什么?它能单独证明模型来源吗?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
-        Claude 在思考问题的时候,<strong>Anthropic 服务器会盖一个密码"指纹"</strong>
-        (就像快递包裹外面贴的 Anthropic 官方封条)。这个封条只有 Anthropic 自己的密钥能盖出来,
-        中转站想伪造也伪造不了。零一智鉴检测的就是这个封条 — 中转站给你的回复里没有封条 / 封条不对,
-        那它就<strong>不是真 Claude</strong>,可能给你换成了别的便宜模型在跑。
+        Claude 在思考问题时会返回一个不透明的 <strong>signature</strong>。
+        零一智鉴检查这个字段有没有被透传、形态是否异常。缺失或形态异常代表中转链路存在高风险,
+        但仍需结合其他检测项,不能只凭这一项断定模型来源。
       </p>
       <p data-mode="developer">
         thinking signature 是 Claude 启用扩展思考时,响应里 <code>signature</code> 字段返回的
         <strong>服务端加密产物</strong>,长度 500-2000 字符。这个签名由 Anthropic 服务端生成,
-        带加密验证 — <strong>中转站理论上无法伪造</strong>。零一智鉴把它作为 25% 权重的核心检测项,
-        任何中转站若返回不出这个签名(或长度异常),即可判定为非真品 Claude。
+        当前零一智鉴检查该字段是否被完整透传及其长度形态,并把它作为 25% 权重的协议证据。
+        本服务不持有独立官方凭据做密码学验签,因此必须结合其他检测项判断风险。
       </p>
     </div>
   </details>
@@ -202,8 +201,8 @@
     <summary>Claude 中转站怎么挑?哪些信号说明它靠谱?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
-        三步傻瓜判断:① 用零一智鉴测一次,<strong>总分 85 分以上</strong>基本能用,
-        100 分通常是 1:1 透传官方;② 看页面有没有<strong>「严重」标记</strong>,
+        三步傻瓜判断:① 用零一智鉴测一次,<strong>总分 85 分以上</strong>说明多项协议、行为与能力证据表现良好,
+        但高分不等于官方身份认证;② 看页面有没有<strong>「严重」标记</strong>,
         有就说明它可能在偷换模型,直接换一家;③ 去<a href="/leaderboard">红黑榜</a>查这家中转站
         的历史记录,看其他人测出来什么样,<strong>测过 10 次以上仍稳定高分</strong>的更可信。
         便宜的中转站多半有水分,看分数比看价格重要。
@@ -220,20 +219,20 @@
   </details>
 
   <details class="faq-item">
-    <summary>Kiro / Amazon Q 假冒 Claude 怎么识破?</summary>
+    <summary>Kiro / Amazon Q 包装层风险怎么发现?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
         有些中转站后端其实用的是 Amazon 自家"包装过的 Claude"(产品名叫 Kiro 或 Amazon Q)。
         Amazon 这版会把 Claude 的<strong>思考"指纹"删掉</strong> — 因为他们走的是简化接口。
-        零一智鉴一测,看不到 Anthropic 的指纹封条 = 立刻判定<strong>不是真 Claude</strong>。
-        简单说,零一智鉴用一个中转站<strong>无法伪造的密码</strong>当照妖镜,假冒货 5 秒露馅。
+        零一智鉴会把 thinking signature 缺失记为高风险证据,
+        再结合身份、行为、能力和协议特征给出整体结论。
       </p>
       <p data-mode="developer">
         Kiro 和 Amazon Q 是 Amazon 的 Claude 替身网关,走 AWS Bedrock 的简化接口,
         响应里<strong>不返回 thinking signature</strong>(签名生成需要 Anthropic 的私钥,
         Bedrock 端不实现该路径)。零一智鉴在 thinking_signature detector 上判 0 分,
-        25% 权重直接归零,verdict 整体被锁到 marginal 或 failed。同样适用于其他
-        Bedrock-routing 中转站。
+        该项 25% 历史权重归零,再与其他检测项一起进入加权计分。
+        它是高风险证据,但不是单项否决规则。
       </p>
     </div>
   </details>

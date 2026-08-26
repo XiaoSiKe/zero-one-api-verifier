@@ -22,7 +22,7 @@
 **Veridrop is an open-source authenticity and compliance checker for AI API
 relay/proxy services.** Given a `base_url + api_key + model`, it runs a suite
 of probe requests and diffs the responses against official-API baselines at
-the field, protocol, and cryptographic level — answering three questions:
+the field, protocol, and multi-signal evidence level — answering three questions:
 
 1. **Authenticity** — does this relay really forward to the Claude / GPT /
    Gemini model it claims, or is it a cheaper model in disguise?
@@ -58,7 +58,7 @@ Completions, and the Gemini OpenAI-compatible API.
 
 ---
 
-一个开源的 AI API 中转站(relay / proxy)真伪与质量检测工具。给定一个 `base_url + api_key + model`,自动跑一组探针请求,把结果跟「官方真品基线」做**字段级、协议级、加密级**对比,回答三个问题:
+一个开源的 AI API 中转站(relay / proxy)真实性与质量检测工具。给定一个 `base_url + api_key + model`,自动跑一组探针请求,把结果跟官方基线做**字段级、协议级、多维证据级**对比,回答三个问题:
 
 1. **真伪**:这家中转站给我的真的是它声称的模型吗?(Claude / GPT / Gemini)
 2. **能力**:PDF / Tool Use / Thinking / Function Calling 等高级能力有没有被剥离?
@@ -82,11 +82,11 @@ Veridrop 的检测算法、评分逻辑和报告证据保持开源透明。你�
 
 ---
 
-## 核心创新:加密级真伪验证 ⭐
+## 核心信号:Thinking 签名透传形态 ⭐
 
-Claude 协议下,启用 thinking 时响应会返回 `signature` 字段(~500–2000 字符) — 这是 Anthropic 服务端用密钥签名的加密产物,中转站**理论上无法伪造**。这是业内唯一可加密验证、不可绕过的真伪指标,Veridrop 把它作为 Claude 协议 25% 权重的核心检测项。
+Claude 协议下,启用 thinking 时响应会返回不透明的 `signature` 字段。零一智鉴检查 thinking 块、signature 是否被透传及其长度形态,并把它作为 Claude 协议 25% 权重的高价值协议信号。当前实现**不持有独立的官方 Anthropic 凭据做密码学验签**，因此该项只能说明响应形态与官方协议一致，不能单独证明模型来源。
 
-OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**协议级 / 行为级**,但仍可通过 `usage` 字段后端指纹(如 `claude_cache_creation_*` 残留)识别"换芯"中转站。
+OpenAI / Gemini 当前也没有可供本服务独立验证的模型来源证明,因此三种协议的结果都是**风险证据**,不是官方身份认证。`usage` 字段的异源痕迹(如 `claude_cache_creation_*` 残留)仍可用于发现可疑包装层。
 
 ---
 
@@ -112,14 +112,14 @@ OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**�
 
 ### Claude(Anthropic)— 12 项
 
-> **杀手锏**:`thinking_signature` 加密签名校验 — 中转站理论上无法伪造,
-> 这是 Veridrop 唯一能给出「数学级」真伪结论的协议。
+> **重点信号**:`thinking_signature` 透传形态检查 — 验证 thinking 块与不透明 signature 是否按官方协议返回。
+> 它是多维证据之一，不是独立密码学验签或官方身份认证。
 
 | 类别 | 检测器 | 核心检测点 |
 |---|---|---|
 | **真伪** | identity | 直接询问"你是谁",含 Claude / Anthropic 关键词 |
 | | behavioral_signature | 3 道行为指纹题(markdown / 列表 / 拒绝风格) |
-| | **thinking_signature** ⭐ | **加密级**:thinking 块的 signature 不可伪造 |
+| | **thinking_signature** ⭐ | thinking 块与 signature 的透传形态、存在性和长度 |
 | | consistency | model 字段匹配 + 多次响应稳定性(CV) |
 | | knowledge | 5 道 Anthropic 公司知识题 |
 | **能力** | pdf | base64 PDF + magic string 提取 |
@@ -149,7 +149,7 @@ OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**�
 
 ### Gemini(OpenAI 兼容协议)— 7 项
 
-> **杀手锏**:Gemini 3 thinking-by-default 适配 — 真品强制带 thinking 元数据,
+> **重点能力**:Gemini thinking-by-default 兼容 — 检查兼容层是否保留必要的响应和 usage 结构,
 > 假冒包装层经常漏字段或返回结构不符。
 
 | 类别 | 检测器 | 核心检测点 |
@@ -214,7 +214,7 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 ┏━━━━━━━━━━━━━━┳━━━━━━┳━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓
 ┃ 项           ┃ relay ┃ Δ   ┃ 差异详情               ┃
 ┡━━━━━━━━━━━━━━╇━━━━━━━╇━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━┩
-│ 思维签名验证 │ 0     │-100 │ thinking 块完全没返回  │
+│ 思维签名形态 │ 0     │-100 │ thinking 块完全没返回  │
 │ PDF 文档识别 │ 50    │ -50 │ 'responded_but_missed' │
 │ 消息标识规范 │ 50    │ -50 │ id 是 UUID + 'tool_1'  │
 └──────────────┴───────┴─────┴────────────────────────┘
@@ -222,7 +222,7 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 
 | 级别 | 含义 | 典型场景 |
 |---|---|---|
-| **✗ 严重 (critical)** | 几乎确定不是真品 | thinking 块缺失 / PDF 剥离 / tool_use 假 ID |
+| **✗ 严重 (critical)** | 存在高风险协议或能力偏差 | thinking 块缺失 / PDF 剥离 / tool_use 假 ID |
 | **⚠ 重大 (major)** | 疑似伪装 / 能力降级 | response.model 不匹配 / 用 UUID 替代 msg_ |
 | **▲ 轻微 (minor)** | 能用但有协议偏差 | 1-2 题失败 / CV 偏高 / 1-2 个 issues |
 | **✓ 一致 (ok)** | 跟官方基线一致 | 关键字段全部匹配 |
@@ -247,8 +247,8 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 | 模式 | 包含项 | 请求数 | 耗时 | 成本(Haiku) |
 |---|---|---|---|---|
 | `quick` | 5 项核心 | ~6 | ~15s | ~$0.005 |
-| `standard` | 8 项 | ~12 | ~40s | ~$0.012 |
-| `full` | 全部 11 项 | ~13 | ~70s | ~$0.020 |
+| `standard` | 9 项 | 动态 | ~40s | ~$0.012 |
+| `full` | 11 个基础项 + 1 个按需长上下文 | 动态 | ~70s | ~$0.020（不含长上下文） |
 
 ⚠️ `compare` 命令需要 `full` 模式 — quick / standard 跑出来的报告没有对应基线。
 

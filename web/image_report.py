@@ -13,7 +13,6 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
-
 # Font hunt: Noto CJK first (apt: fonts-noto-cjk) so Chinese characters render.
 # DejaVu is the Latin fallback; PIL's built-in bitmap font is the last resort
 # so we never crash on a fresh box.
@@ -22,6 +21,8 @@ _FONT_CANDIDATES_REGULAR = [
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 _FONT_CANDIDATES_BOLD = [
@@ -29,6 +30,8 @@ _FONT_CANDIDATES_BOLD = [
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 
@@ -59,7 +62,7 @@ _DETECTOR_LABELS = {
     "anthropic": [
         ("identity", "身份一致性"),
         ("behavioral_signature", "行为签名验证"),
-        ("thinking_signature", "思维签名验证"),
+        ("thinking_signature", "思维签名形态"),
         ("consistency", "模型一致性"),
         ("knowledge", "知识准确度"),
         ("pdf", "PDF 文档识别"),
@@ -120,7 +123,7 @@ def _verdict_caption(score: float, verdict: str, protocol: str = "anthropic") ->
     caption needs to follow verdict, not raw score thresholds.
     """
     if verdict == "passed" and score >= 95 and protocol == "anthropic":
-        return "完全一致"
+        return "多维证据良好"
     if verdict == "passed" and score >= 85:
         return "协议表现良好" if protocol in {"openai", "gemini"} else "优秀"
     if verdict == "passed":
@@ -139,6 +142,41 @@ def _draw_check(d: ImageDraw.ImageDraw, cx: int, cy: int, r: int,
     p2 = (cx - r * 0.10, cy + r * 0.40)
     p3 = (cx + r * 0.50, cy - r * 0.30)
     d.line([p1, p2, p3], fill=(255, 255, 255), width=max(2, r // 6))
+
+
+def _fit_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    max_width: float,
+) -> str:
+    """Ellipsize text by rendered pixel width, including CJK/model aliases."""
+    value = str(text)
+    if draw.textlength(value, font=font) <= max_width:
+        return value
+    ellipsis = "…"
+    low, high = 0, len(value)
+    while low < high:
+        mid = (low + high + 1) // 2
+        candidate = value[:mid] + ellipsis
+        if draw.textlength(candidate, font=font) <= max_width:
+            low = mid
+        else:
+            high = mid - 1
+    return value[:low] + ellipsis
+
+
+def _model_mode_text(
+    draw: ImageDraw.ImageDraw,
+    model: str,
+    mode: str,
+    font: ImageFont.FreeTypeFont | ImageFont.ImageFont,
+    max_width: float = 440.0,
+) -> str:
+    """Fit the model alias while always preserving the selected mode."""
+    suffix = f"  ·  mode={mode}"
+    model_budget = max(40.0, max_width - draw.textlength(suffix, font=font))
+    return _fit_text(draw, model, font, model_budget) + suffix
 
 
 def _draw_cross(d: ImageDraw.ImageDraw, cx: int, cy: int, r: int,
@@ -173,7 +211,7 @@ def _draw_circle_score(d: ImageDraw.ImageDraw, cx: int, cy: int, radius: int,
     )
 
     # score text — keep share images clean and compact.
-    score_text = f"{int(round(score))}%"
+    score_text = f"{round(score)}%"
     score_font = _load_font(74, bold=True)
     bbox = d.textbbox((0, 0), score_text, font=score_font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -222,7 +260,7 @@ def _draw_metric_tile(d: ImageDraw.ImageDraw, x: int, y: int, w: int, h: int,
     )
 
 
-def _format_count(n: int | float | None) -> str:
+def _format_count(n: float | None) -> str:
     if n is None:
         return "-"
     if isinstance(n, float):
@@ -310,6 +348,24 @@ def _gemini_jpg_note(report: dict[str, Any]) -> str:
     return ""
 
 
+def _detector_layout(
+    protocol: str,
+    by_name: dict[str, dict[str, Any]],
+    note: str,
+    *,
+    rows_top: int = 160,
+    tile_y: int = 850,
+) -> tuple[list[tuple[str, str]], int, int | None]:
+    labels = list(_DETECTOR_LABELS.get(protocol, _DETECTOR_LABELS["anthropic"]))
+    if "long_context" in by_name:
+        labels.append(("long_context", "长上下文真实性"))
+    note_space = 74 if note else 0
+    available_rows_h = tile_y - 20 - rows_top - note_space
+    row_h = min(56, max(42, available_rows_h // max(1, len(labels))))
+    note_y = rows_top + len(labels) * row_h + 16 if note else None
+    return labels, row_h, note_y
+
+
 def render_report_jpg(report: dict[str, Any]) -> bytes:
     """Render the report into a JPG and return the bytes."""
     W, H = 1400, 1000
@@ -363,7 +419,12 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     sub_font = _load_font(16)
     model_label = report.get("target_model", "")
     mode_label = report.get("mode", "")
-    sub_text = f"{model_label}  ·  mode={mode_label}"
+    sub_text = _model_mode_text(
+        d,
+        str(model_label),
+        str(mode_label),
+        sub_font,
+    )
     sb = d.textbbox((0, 0), sub_text, font=sub_font)
     sw = sb[2] - sb[0]
     d.text(
@@ -373,10 +434,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # base_url (truncated) below model line
     base_url = report.get("base_url", "")
-    if len(base_url) > 38:
-        base_url_disp = base_url[:35] + "..."
-    else:
-        base_url_disp = base_url
+    base_url_disp = _fit_text(d, str(base_url), sub_font, 440)
     bb = d.textbbox((0, 0), base_url_disp, font=sub_font)
     bw = bb[2] - bb[0]
     d.text(
@@ -386,7 +444,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # 报告来源
     attr_font = _load_font(14)
-    attr_text = "由 01yapi.cc 生成"
+    attr_text = "多维风险证据 · 非独立验签 · 01yapi.cc"
     ab = d.textbbox((0, 0), attr_text, font=attr_font)
     aw = ab[2] - ab[0]
     d.text(
@@ -397,7 +455,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     # ------- right: detector rows -------
     rows_x = 620
     rows_top = 160
-    row_h = 56
+    tile_y = H - 150
     rows_w = W - rows_x - 60
     label_font = _load_font(20)
     status_font = _load_font(20, bold=True)
@@ -408,7 +466,15 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         if isinstance(r, dict)
     }
 
-    labels = _DETECTOR_LABELS.get(protocol, _DETECTOR_LABELS["anthropic"])
+    if protocol == "gemini":
+        note = _gemini_jpg_note(report)
+    elif protocol == "openai":
+        note = _openai_jpg_note(report)
+    else:
+        note = _anthropic_jpg_note(report)
+    labels, row_h, note_y = _detector_layout(
+        protocol, by_name, note, rows_top=rows_top, tile_y=tile_y,
+    )
     for i, (name, label) in enumerate(labels):
         ry = rows_top + i * row_h
         result = by_name.get(name) or {}
@@ -454,15 +520,9 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # Plain-language note for share images. Keep it short so the JPG remains
     # readable on mobile and social previews.
-    if protocol == "gemini":
-        note = _gemini_jpg_note(report)
-    elif protocol == "openai":
-        note = _openai_jpg_note(report)
-    else:
-        note = _anthropic_jpg_note(report)
     if note:
         note_font = _load_font(17)
-        note_y = rows_top + len(labels) * row_h + 36
+        assert note_y is not None
         d.rounded_rectangle(
             (rows_x, note_y, rows_x + rows_w, note_y + 54),
             radius=8,
@@ -488,7 +548,6 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         ("输入 TOKENS", _format_count(usage.get("input_tokens"))),
         ("输出 TOKENS", _format_count(usage.get("output_tokens"))),
     ]
-    tile_y = H - 150
     tile_h = 90
     tile_gap = 14
     tile_total_w = W - 120
@@ -498,9 +557,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         # Highlight pathological values: TTFT >2s or total latency >30s
         # suggests a slow / overloaded relay. Otherwise tile renders plain.
         highlight = False
-        if label == "首 TOKEN" and isinstance(ttft, int) and ttft > 2000:
-            highlight = True
-        elif label == "总耗时" and isinstance(perf.get("total_latency_ms"), int) \
+        if label == "首 TOKEN" and isinstance(ttft, int) and ttft > 2000 or label == "总耗时" and isinstance(perf.get("total_latency_ms"), int) \
                 and perf["total_latency_ms"] > 30000:
             highlight = True
         _draw_metric_tile(d, tx, tile_y, tile_w, tile_h, label, value, highlight)

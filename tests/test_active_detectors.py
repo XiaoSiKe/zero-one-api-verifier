@@ -34,8 +34,8 @@ def test_lookup_model_alias():
 
 
 def test_lookup_model_opus_4_8_registered():
-    """opus-4-8 必须在册且 thinking 支持开启,否则 thinking_signature
-    会对最新模型静默跳过(皇冠级检测失灵)。自适应思维,同 4-7。"""
+    """opus-4-8 必须在册且 thinking 支持开启,否则 signature 透传
+    形态检查会对最新模型静默跳过。自适应思维,同 4-7。"""
     info = lookup_model("claude-opus-4-8")
     assert info is not None
     assert info.alias == "claude-opus-4-8"
@@ -332,6 +332,8 @@ async def test_thinking_adaptive_opus_47_and_48_use_xhigh_effort():
         assert sent["thinking"] == {"type": "adaptive", "display": "summarized"}
         assert sent["output_config"] == {"effort": "xhigh"}
         assert result.details["output_config_sent"] == {"effort": "xhigh"}
+        assert result.details["verification_level"] == "shape_only"
+        assert result.details["cryptographically_verified"] is False
 
 
 async def test_thinking_extended_models_do_not_send_output_config():
@@ -342,6 +344,8 @@ async def test_thinking_extended_models_do_not_send_output_config():
     assert sent["thinking"] == {"type": "enabled", "budget_tokens": 2000}
     assert "output_config" not in sent
     assert result.details["output_config_sent"] is None
+    assert result.details["verification_level"] == "shape_only"
+    assert result.details["cryptographically_verified"] is False
 
 
 # --- PDFDetector data plumbing --------------------------------------------

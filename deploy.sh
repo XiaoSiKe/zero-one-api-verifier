@@ -20,7 +20,7 @@
 set -euo pipefail
 
 REMOTE_HOST="${RELAY_DETECTOR_HOST:-root@156.227.236.49}"
-REMOTE_PATH="${RELAY_DETECTOR_PATH:-/opt/relay-detector}"
+REMOTE_PATH="${RELAY_DETECTOR_PATH:-/opt/veridrop}"
 
 REINSTALL=false
 RUN_TESTS=false
@@ -36,7 +36,7 @@ optionally reinstall deps and run tests.
 Options:
   --host HOST      ssh destination (default: $REMOTE_HOST)
   --path PATH      remote install path (default: $REMOTE_PATH)
-  --reinstall      re-run \`pip install -e .[dev]\` after sync
+  --reinstall      re-run \`pip install -e .[dev,web]\` after sync
                    (use when pyproject.toml changed)
   --test           run pytest on remote after sync
   --dry-run        rsync -n; show what would change, copy nothing
@@ -45,7 +45,7 @@ Options:
 Environment overrides: RELAY_DETECTOR_HOST, RELAY_DETECTOR_PATH
 
 Prerequisite (one-time, on fresh Ubuntu):
-  ssh $REMOTE_HOST 'apt-get update && apt-get install -y python3.10-venv'
+  ssh $REMOTE_HOST 'apt-get update && apt-get install -y python3.10-venv fonts-noto-cjk'
 EOF
 }
 
@@ -85,6 +85,7 @@ EXCLUDES=(
   --exclude='baselines/'        # local-only output dir of bench.sh on remote
   --exclude='out/'              # ad-hoc output directory on remote
   --exclude='tmp/'              # ad-hoc tmp dir
+  --exclude='sso-connect/'      # independently deployed SSO module
 )
 
 RSYNC_FLAGS=(-az --delete)
@@ -110,10 +111,10 @@ if [[ "$NEED_VENV" == "yes" ]]; then
   ssh "$REMOTE_HOST" "set -e; cd $REMOTE_PATH && \
     python3 -m venv venv && \
     ./venv/bin/pip install --quiet --upgrade pip && \
-    ./venv/bin/pip install --quiet -e '.[dev]'"
+    ./venv/bin/pip install --quiet -e '.[dev,web]'"
 elif $REINSTALL; then
   echo "→ reinstalling deps on remote"
-  ssh "$REMOTE_HOST" "cd $REMOTE_PATH && ./venv/bin/pip install --quiet -e '.[dev]'"
+  ssh "$REMOTE_HOST" "cd $REMOTE_PATH && ./venv/bin/pip install --quiet -e '.[dev,web]'"
 fi
 
 if $RUN_TESTS; then

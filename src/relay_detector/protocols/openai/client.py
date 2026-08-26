@@ -94,12 +94,14 @@ class OpenAIChatClient:
         api_key: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
         extra_headers: dict[str, str] | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         self.base_url = normalize_openai_base_url(base_url)
         self.api_key = api_key or ""
         headers = {
             "authorization": f"Bearer {self.api_key}",
             "content-type": "application/json",
+            "accept-encoding": "identity",
         }
         if extra_headers:
             headers.update(extra_headers)
@@ -107,6 +109,7 @@ class OpenAIChatClient:
             base_url=self.base_url,
             headers=headers,
             timeout=timeout,
+            transport=transport,
         )
 
     async def aclose(self) -> None:

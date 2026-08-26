@@ -24,10 +24,16 @@ from typing import Any
 
 import httpx
 
+from relay_detector.protocols.resolve import protocol_from_model
 
 PROTOCOLS = ("anthropic", "openai", "gemini")
 PROBE_TIMEOUT_S = 4.0
 CACHE_TTL_S = 300.0  # 5 min
+MAX_RESPONSE_BYTES = 1_000_000
+
+
+class ProbeResponseTooLarge(RuntimeError):
+    """The model-list response exceeded the bounded probe budget."""
 
 
 def _classify(model_id: str) -> str | None:
@@ -38,19 +44,8 @@ def _classify(model_id: str) -> str | None:
     expose. We use it for "the form's protocol agrees with the model name",
     not for trust-level decisions.
     """
-    if not isinstance(model_id, str) or not model_id:
-        return None
-    s = model_id.strip().lower().removeprefix("models/")
-    if s.startswith("claude") or "/claude" in s:
-        return "anthropic"
-    if s.startswith("gemini") or "/gemini" in s:
-        return "gemini"
-    if (
-        s.startswith(("gpt-", "o1", "o3", "o4", "chatgpt", "text-embedding-"))
-        or s.startswith(("openai/", "azure/openai"))
-    ):
-        return "openai"
-    return None
+    protocol = protocol_from_model(model_id)
+    return protocol.value if protocol else None
 
 
 # (base_url, api_key_hash) -> (timestamp, response_dict)
@@ -62,7 +57,33 @@ def _cache_key(base_url: str, api_key: str) -> tuple[str, str]:
     return (base_url.rstrip("/").lower(), h)
 
 
-async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
+def _redact_cached(value: Any, api_key: str) -> Any:
+    if isinstance(value, dict):
+        return {key: _redact_cached(item, api_key) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_cached(item, api_key) for item in value]
+    if isinstance(value, str) and api_key:
+        return value.replace(api_key, "[REDACTED]")
+    return value
+
+
+def _store_cache(
+    key: tuple[str, str],
+    created: float,
+    value: dict[str, Any],
+    api_key: str,
+) -> dict[str, Any]:
+    safe = _redact_cached(value, api_key)
+    _CACHE[key] = (created, safe)
+    return safe
+
+
+async def probe_relay(
+    base_url: str,
+    api_key: str,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
+) -> dict[str, Any]:
     """Probe a relay's /models endpoint. Always returns a structured dict.
 
     Never raises — network and protocol errors are returned as ``ok=false``
@@ -71,6 +92,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
     """
     key = _cache_key(base_url, api_key)
     now = time.monotonic()
+    _prune_cache(now, reserve=key not in _CACHE)
     cached = _CACHE.get(key)
     if cached and now - cached[0] < CACHE_TTL_S:
         return cached[1]
@@ -85,20 +107,23 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
+        "accept-encoding": "identity",
     }
 
     out: dict[str, Any]
     try:
-        async with httpx.AsyncClient(timeout=PROBE_TIMEOUT_S) as client:
+        async with httpx.AsyncClient(
+            timeout=PROBE_TIMEOUT_S,
+            transport=transport,
+            trust_env=transport is None,
+        ) as client:
             resp, payload = await _get_models_with_fallback(client, urls, headers)
     except (httpx.TimeoutException, httpx.NetworkError) as e:
         out = _err(f"网络/超时: {type(e).__name__}", base_url, status=None)
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
     except Exception as e:  # noqa: BLE001
         out = _err(f"请求失败: {type(e).__name__}: {e}", base_url, status=None)
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
 
     status = resp.status_code
 
@@ -117,8 +142,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
             "error": None,
             "note": "该中转站不暴露 /v1/models,无法预先列模型",
         }
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
 
     if status in (401, 403):
         out = _err(
@@ -127,8 +151,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
             status=status,
             auth_ok=False,
         )
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
 
     if status >= 400:
         out = _err(
@@ -136,13 +159,11 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
             base_url,
             status=status,
         )
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
 
     if payload is None:
         out = _err("响应不是有效 JSON", base_url, status=status)
-        _CACHE[key] = (now, out)
-        return out
+        return _store_cache(key, now, out, api_key)
 
     ids = _extract_model_ids(payload)
     by_proto: dict[str, list[str]] = {p: [] for p in PROTOCOLS}
@@ -177,8 +198,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         "error": None,
         "note": None,
     }
-    _CACHE[key] = (now, out)
-    return out
+    return _store_cache(key, now, out, api_key)
 
 
 def _extract_model_ids(payload: Any) -> list[str]:
@@ -241,7 +261,7 @@ async def _get_models_with_fallback(
     last_resp: httpx.Response | None = None
 
     for i, url in enumerate(urls):
-        resp = await client.get(url, headers=headers)
+        resp = await _get_limited(client, url, headers)
         last_resp = resp
         if resp.status_code < 400:
             try:
@@ -264,6 +284,33 @@ async def _get_models_with_fallback(
     if last_resp is None:
         raise RuntimeError("no model probe urls configured")
     return last_resp, None
+
+
+async def _get_limited(
+    client: httpx.AsyncClient,
+    url: str,
+    headers: dict[str, str],
+) -> httpx.Response:
+    """Stream at most MAX_RESPONSE_BYTES instead of buffering unbounded JSON."""
+    async with client.stream("GET", url, headers=headers, follow_redirects=False) as resp:
+        declared = resp.headers.get("content-length")
+        if declared:
+            try:
+                if int(declared) > MAX_RESPONSE_BYTES:
+                    raise ProbeResponseTooLarge("模型列表响应过大")
+            except ValueError:
+                pass
+        body = bytearray()
+        async for chunk in resp.aiter_bytes():
+            body.extend(chunk)
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ProbeResponseTooLarge("模型列表响应过大")
+        return httpx.Response(
+            resp.status_code,
+            headers=resp.headers,
+            content=bytes(body),
+            request=resp.request,
+        )
 
 
 def _err(
@@ -365,6 +412,18 @@ def clear_cache() -> None:
     _CACHE.clear()
 
 
+def _prune_cache(now: float, *, reserve: int = 0) -> None:
+    """Drop expired probe entries and cap one-off key memory usage."""
+    expired = [key for key, (created, _) in _CACHE.items() if now - created >= CACHE_TTL_S]
+    for key in expired:
+        _CACHE.pop(key, None)
+    overflow = len(_CACHE) + reserve - 512
+    if overflow > 0:
+        oldest = sorted(_CACHE, key=lambda key: _CACHE[key][0])[:overflow]
+        for key in oldest:
+            _CACHE.pop(key, None)
+
+
 # ---------------------------------------------------------------------------
 # Model-level preflight — does the relay actually answer for this model?
 # ---------------------------------------------------------------------------
@@ -388,6 +447,8 @@ async def probe_model_alive(
     api_key: str,
     model: str,
     protocol: str,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> tuple[bool, str | None]:
     """Return ``(alive, error_text_or_None)``.
 
@@ -403,7 +464,9 @@ async def probe_model_alive(
     try:
         if protocol == "openai":
             from relay_detector.protocols.openai import make_client
-            async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
+            async with make_client(
+                base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S, transport=transport
+            ) as c:
                 _req, _resp, _h, _lat = await c.chat_completions_create(
                     model=model,
                     max_completion_tokens=4,
@@ -411,7 +474,9 @@ async def probe_model_alive(
                 )
         elif protocol == "gemini":
             from relay_detector.protocols.gemini import make_client
-            async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
+            async with make_client(
+                base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S, transport=transport
+            ) as c:
                 _req, _resp, _h, _lat = await c.chat_completions_create(
                     model=model,
                     max_completion_tokens=4,
@@ -419,7 +484,9 @@ async def probe_model_alive(
                 )
         elif protocol == "anthropic":
             from relay_detector.protocols.anthropic import make_client
-            async with make_client(base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S) as c:
+            async with make_client(
+                base_url, api_key, timeout=PREFLIGHT_TIMEOUT_S, transport=transport
+            ) as c:
                 _req, _resp, _h, _lat = await c.messages_create(
                     model=model,
                     max_tokens=4,

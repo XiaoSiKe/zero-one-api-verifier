@@ -1,6 +1,6 @@
 # Claude 中转站检测工具 — 技术设计文档
 
-> **版本说明**：本文档所有协议字段、事件名、模型 ID、knowledge cutoff 均基于 Anthropic 官方文档交叉验证（来源见附录 D）。设计中标注 ⭐ 的检测项基于官方协议中可被加密验证的特征，是真伪鉴别的核心指标。
+> **版本说明**：本文档所有协议字段、事件名、模型 ID、knowledge cutoff 均基于官方文档交叉验证（来源见附录 D）。标注 ⭐ 的检测项是高价值协议/行为信号；当前服务不持有独立官方凭据做密码学验签，任何单项都不能视为官方身份认证。
 
 ## 1. 项目背景与目标
 
@@ -28,26 +28,28 @@
 
 ## 2. 检测维度总览
 
-10 项检测，按目的分三组。**权重已根据"伪造难度"调整** —— 加密级特征（thinking signature）权重最高，可被 system prompt 注入伪造的（identity）权重最低。
+11 个基础检测项按目的分三组，另有 1 个按需长上下文项。权重综合协议稀缺性、稳定性与伪造成本设置；thinking signature 当前检查的是透传形态，不是本地密码学验签。
 
 | 组 | # | 维度 | 检测目的 | 权重 |
 |---|---|---|---|---|
 | A | 1 | 身份一致性 | 自报家门是否说自己是 Claude | 5% |
 | A | 2 | 行为签名验证 | 行为指纹（拒绝模式、风格）是否匹配 Claude | 15% |
-| A | 3 | **思维签名验证** ⭐ | thinking 块的加密 signature 是否真实有效 | **25%** |
+| A | 3 | **思维签名透传形态** ⭐ | thinking 块与 signature 字段是否存在、长度形态是否符合预期 | **25%** |
 | A | 4 | 模型一致性 | response.model 一致 + 多次响应稳定 | 10% |
 | A | 5 | 知识准确度 | knowledge cutoff 是否符合声称版本 | 10% |
 | B | 6 | PDF 文档识别 | document content type 是否真实可用 | 8% |
 | B | 7 | 结构化输出 | tool_use 调用 + schema 正确（含 strict 模式） | 12% |
 | C | 8 | 协议规范性 | 响应字段、streaming 事件流符合官方协议 | 5% |
 | C | 9 | 响应完整性 | stream/non-stream 一致 + token 计数准确 | 5% |
-| C | 10 | 消息标识规范 | id 前缀、type、role、model 字段合规 | 5% |
+| C | 10 | Token 用量 | usage 字段存在性、自洽性与增量合理性 | 10% |
+| C | 11 | 消息标识规范 | id 前缀、type、role、model 字段合规 | 5% |
+| 加测 | 12 | 长上下文真实性 | 三层 needle-in-haystack，仅显式勾选时参与 | 15% |
 
 A 组（65%）：模型真伪 — 核心。
 B 组（20%）：能力完整 — 防阉割。
-C 组（15%）：协议合规 — 工程兼容。
+C 组（原始权重 25）：协议合规与用量风险 — 工程兼容。运行时会对所有未 skip 项的原始权重归一化。
 
-**权重设计原则**：越难伪造的特征权重越高。`signature_delta` 是 Anthropic 服务端加密生成的，中转站用其他模型冒充无法伪造，因此权重最高。
+**权重设计原则**：当前保留既有权重，以维持历史报告和排行榜的可比性。`signature_delta` 是稀有的协议字段，但本服务只观察透传形态，不验证其密码学真伪。
 
 ---
 
@@ -109,11 +111,11 @@ C 组（15%）：协议合规 — 工程兼容。
 
 ---
 
-### 3.3 ThinkingSignatureDetector（思维签名验证）⭐ 加密级真伪验证
+### 3.3 ThinkingSignatureDetector（思维签名透传形态）⭐
 
 **原理**（核心创新）：
 
-Claude 4.5+ 系列在 extended thinking / adaptive thinking 模式下，每个 thinking 块结束前会发一个 `signature_delta` 事件，包含 Anthropic 服务端生成的 **加密签名**。中转站如果用其他模型冒充，无法生成有效的 signature。
+Claude 4.5+ 系列在 extended thinking / adaptive thinking 模式下，响应可包含 `signature_delta` 或非流式 `signature` 字段。官方协议将其定义为服务端产物；但本服务是通过被测中转站看到该字段，又不持有独立官方凭据，因此只能检查透传形态，不能验证模型来源。
 
 **官方协议示例**（streaming 模式）：
 
@@ -154,22 +156,19 @@ event: content_block_stop
    - `signature` 字段非空，看起来是 base64-like 字符串（实测官方签名 > 100 chars，但官方未公开规范，长度阈值仅作参考）
    - 即使 `display: "omitted"` 时 thinking_delta 不发，signature_delta 仍会发 — 是更稳定的检测点
 
-4. 可选：把 thinking 块（含 signature）回传给 API 续接对话，**让官方验签**：
-   - 在下一轮请求的 messages 里附加包含此 thinking 块的 assistant 消息
-   - 若 signature 伪造，API 会返回 400 / 422
-   - 这一步是付费验证，默认关闭，由 `--strict-signature` flag 启用
+4. 不把通过同一中转站回传 thinking 块称作“官方验签”：恶意中转站可以自行接受伪造值。独立密码学验证必须使用与被测中转站隔离的官方凭据，本版本不提供。
 
 **评分**：
 - 100：出现 thinking/redacted_thinking 块 + signature 字段非空 + 长度合理
 - 70：thinking 块存在 + signature 存在但格式可疑（过短、非 base64-like）
 - 30：thinking 块存在但完全没有 signature_delta（中转站剥离或非 Claude 转发）
-- 0：thinking 参数被忽略，未出现任何 thinking 块（明确假冒）
+- 0：thinking 参数被忽略，未出现任何 thinking 块（高风险、不支持或被剥离，不单独定性模型来源）
 
 **适用范围**：仅 Opus 4.7 / Sonnet 4.6 / Haiku 4.5（其他模型 → skip，不计入分母）。
 
-**为什么权重最高**：
-- 中转站要伪造 signature 只有三条路：① 真的转给 Claude（真货） ② 不返回 thinking 块（被检测到） ③ 自己编 signature（开启 `--strict-signature` 即露馅）
-- 这是 10 项中**唯一**可加密级验证的指标。
+**当前解释**：
+- 该项权重暂时保留以维持历史报告和排行榜可比性。
+- 当前实现记录 `verification_level=shape_only`，只验证字段透传、存在性与长度形态，不宣称独立验签。
 
 ---
 
@@ -498,7 +497,6 @@ class ExecutionConfig(BaseModel):
     max_concurrent: int = 3
     request_timeout_s: int = 30
     overall_timeout_s: int = 60   # 按 mode 默认：quick 60 / standard 120 / full 180
-    strict_signature: bool = False
     use_cache: bool = True
     persist_cache: bool = False
 
@@ -643,7 +641,7 @@ total_score = Σ (d.score × d.weight) / effective_weight_sum
 
 ## 6. 执行策略与节流设计
 
-朴素跑全部 10 项检测会发约 21 次请求、耗时 130s+、成本 ~$0.27/次，且瞬间 21 个并发会压垮中转站、几乎必然触发 429。本节定义检测器的执行策略，把这些数字降到可用水平。
+朴素串行跑全部检测会导致请求数、耗时和成本过高。本节定义检测器的响应复用、并发上限和按需长上下文策略；实际请求数会随协议、模式和选项动态变化。
 
 ### 6.1 三档运行模式
 
@@ -651,9 +649,9 @@ total_score = Σ (d.score × d.weight) / effective_weight_sum
 
 | 模式 | flag | 包含项数 | 请求数 | 总耗时（3 并发） | 估算成本（Opus 4.7） |
 |---|---|---|---|---|---|
-| **quick**（默认） | `--mode quick` | 5 项核心 | 5-6 | ~15s | ~$0.05 |
-| standard | `--mode standard` | 8 项 | 10-12 | ~40s | ~$0.12 |
-| full | `--mode full` | 全部 10 项 | 14-16 | ~70s | ~$0.20 |
+| **quick**（默认） | `--mode quick` | 5 项核心 | 动态 | ~15s | ~$0.05 |
+| standard | `--mode standard` | 9 项 | 动态 | ~40s | ~$0.12 |
+| full | `--mode full` | 11 个基础项 + 1 个按需长上下文 | 动态 | ~70s（不含长上下文） | ~$0.20（不含长上下文） |
 
 **各检测器在三档下的参与情况**：
 
@@ -668,7 +666,9 @@ total_score = Σ (d.score × d.weight) / effective_weight_sum
 | 7 | StructuredOutputDetector | — | ✓ | ✓ |
 | 8 | ProtocolDetector（被动） | ✓ | ✓ | ✓ |
 | 9 | IntegrityDetector | — | ✓（简化） | ✓ |
-| 10 | MessageIDDetector（被动） | ✓ | ✓ | ✓ |
+| 10 | TokenUsageDetector | — | ✓ | ✓ |
+| 11 | MessageIDDetector（被动） | ✓ | ✓ | ✓ |
+| 12 | LongContextDetector（按需） | — | — | 显式勾选时运行 |
 
 **简化版的语义**：
 - ConsistencyDetector quick 简化：只跑 1 次请求查 `response.model` 字段，跳过 3 次稳定性测试
@@ -676,7 +676,7 @@ total_score = Σ (d.score × d.weight) / effective_weight_sum
 
 **权重归一化**：被排除的项不计入分母，跟附录里 `applies_to(model)` 的 skip 机制走同一套逻辑。
 
-**为什么 quick 模式有效**：ThinkingSignature 是 10 项里**唯一可加密验证**的指标（25% 权重），加上 Identity（5%）+ Consistency（10%）+ Protocol（5%）+ MessageID（5%），合计 50% 权重就能给出"真伪 + 协议合规"的初步判断。日常检测用 quick 足够，怀疑某家中转站时升级到 full。
+**为什么 quick 模式有效**：ThinkingSignature 透传形态（25% 权重）加上 Identity（5%）+ Consistency（10%）+ Protocol（5%）+ MessageID（5%），能快速给出多维协议与风险初判。日常检测用 quick 足够，怀疑某家中转站时升级到 full。
 
 ### 6.2 响应复用：Active vs Passive Detector
 
@@ -923,7 +923,6 @@ $ relay-detector ... --no-cache
 |---|---|---|
 | `--mode` | `quick` | `quick` / `standard` / `full`，见 §6.1 |
 | `--max-concurrent` | `3` | 并发请求数上限 |
-| `--strict-signature` | off | 是否做 thinking signature 端到端验签（付费） |
 | `--no-cache` | off | 跳过短期结果缓存 |
 | `--persist-cache` | off | 缓存落盘 `~/.cache/relay-detector/` |
 | `--output` | stdout | JSON 报告输出路径 |
@@ -1001,7 +1000,7 @@ $ relay-detector ... --no-cache
    - 未优化前完整检测约 21 请求 / 130s / $0.27 — §6 的执行策略把这三项各削减 30-90%
 5. **中转站压力**：默认 `max_concurrent=3` + 全局 backoff 是核心护栏，避免压垮小中转站或被 ban key。用户可调高，但有副作用提示。
 6. **Thinking 模式可用性**：ThinkingSignatureDetector 仅对支持 thinking 的模型生效（见附录 B）。Haiku 3 系列、旧 Sonnet 4 等不在范围内 → skip。
-7. **Signature 验证局限**：第一版只校验 signature 字段存在性 + 格式。端到端加密验证需要把 thinking 块回传给 API（付费），由 `--strict-signature` 启用。
+7. **Signature 验证局限**：当前只校验 signature 字段存在性与长度形态。通过同一中转站回传 thinking 块不能构成独立验签，因为恶意中转站可以自行接受伪造值；真正密码学验证需要独立的官方 Anthropic 凭据，本版本不提供。
 8. **官方文档与 API 实际行为存在偏差**：实测发现 7 处文档说法与真实 API 不一致（如 Opus 4.7 拒绝 `temperature`、`tool_use.caller` 可能是 dict、streaming + adaptive 静默丢弃 thinking 块等）。检测器必须感知并绕开这些差异，否则会把官方 API 自身误判为不合规，污染 baseline。完整列表见**附录 E**。
 
 ---
@@ -1011,7 +1010,7 @@ $ relay-detector ... --no-cache
 - OpenAI 兼容协议支持（`/v1/chat/completions`）
 - GPT / Gemini 系列检测（需要为每家维护行为指纹）
 - Web UI（FastAPI + 简单前端，复刻截图样式）
-- Signature 端到端验证（v2）：把 thinking 块回传 API 验签
+- 独立 Signature 验证（未来）：使用与被测中转站隔离的官方凭据验证，另行设计成本与密钥边界
 - 历史趋势：同一中转站定期检测，看分数变化
 - 公开榜单
 

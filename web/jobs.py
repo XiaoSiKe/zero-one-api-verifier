@@ -3,8 +3,8 @@
 Wraps the same Runner the CLI uses. Single uvicorn worker, in-process state
 guarded by an asyncio lock. Done jobs are persisted to disk so a server
 restart keeps the shareable result URLs alive. API keys are NEVER persisted —
-the masked form goes to disk; the raw key lives only in the Job until the run
-finishes, then is dropped from memory.
+the masked form goes to disk; the raw key lives only in the running task
+closure and is released when the run finishes.
 """
 
 from __future__ import annotations
@@ -12,12 +12,16 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import secrets
+import tempfile
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
+
+import httpx
 
 from relay_detector.models import (
     DetectionReport,
@@ -34,14 +38,14 @@ from relay_detector.scorer import (
     summary_text,
 )
 
+from .paths import JOBS_DIR as DEFAULT_JOBS_DIR
+from .target_safety import build_safe_transport, validate_target_url
 
 JobStatus = Literal["queued", "running", "done", "error"]
 
-# Production default; override via VERIDROP_JOBS_DIR in tests / dev so the
-# import doesn't try to mkdir into /opt/veridrop on a developer laptop.
-JOBS_DIR = Path(
-    os.environ.get("VERIDROP_JOBS_DIR", "/opt/veridrop/web_data/jobs")
-)
+# Repository-local by default; production can set VERIDROP_WEB_DATA_DIR or
+# the legacy VERIDROP_JOBS_DIR override.
+JOBS_DIR = DEFAULT_JOBS_DIR
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Cap concurrent detections so a flood of submissions doesn't exhaust file
@@ -49,6 +53,12 @@ JOBS_DIR.mkdir(parents=True, exist_ok=True)
 # already runs ~13 outbound requests in parallel, so 6 inflight = ~78 sockets.
 _MAX_INFLIGHT = 6
 _SEMA = asyncio.Semaphore(_MAX_INFLIGHT)
+_MAX_PENDING = int(os.environ.get("VERIDROP_MAX_PENDING_JOBS", "24"))
+_MAX_RETAINED_JOBS = int(os.environ.get("VERIDROP_MAX_RETAINED_JOBS", "500"))
+
+
+class QueueFullError(RuntimeError):
+    """Raised when accepting another detection would exceed queue capacity."""
 
 
 @dataclass
@@ -68,6 +78,79 @@ class Job:
 
 _JOBS: dict[str, Job] = {}
 _LOCK = asyncio.Lock()
+_TASKS: set[asyncio.Task[None]] = set()
+
+_SENSITIVE_FIELDS = {
+    "api_key", "authorization", "x_api_key", "access_token", "refresh_token",
+    "client_secret", "secret", "token",
+}
+_SECRET_PATTERNS = (
+    re.compile(r"\b(?:sk|key)-[A-Za-z0-9._-]{6,}\b"),
+    re.compile(r"\bBearer\s+[^\s\"']{8,}", re.IGNORECASE),
+)
+
+
+def redact_sensitive(value: Any, secrets_to_remove: tuple[str, ...] = ()) -> Any:
+    """Recursively remove credentials from public errors and reports."""
+    if isinstance(value, dict):
+        out: dict[Any, Any] = {}
+        for key, item in value.items():
+            normalized = str(key).strip().lower().replace("-", "_")
+            out[key] = (
+                "[REDACTED]"
+                if normalized in _SENSITIVE_FIELDS
+                else redact_sensitive(item, secrets_to_remove)
+            )
+        return out
+    if isinstance(value, list):
+        return [redact_sensitive(item, secrets_to_remove) for item in value]
+    if isinstance(value, tuple):
+        return tuple(redact_sensitive(item, secrets_to_remove) for item in value)
+    if isinstance(value, str):
+        redacted = value
+        for secret in secrets_to_remove:
+            if secret:
+                redacted = redacted.replace(secret, "[REDACTED]")
+        for pattern in _SECRET_PATTERNS:
+            redacted = pattern.sub("[REDACTED]", redacted)
+        return redacted
+    return value
+
+
+def _evict_completed_locked() -> None:
+    terminal = sorted(
+        (job for job in _JOBS.values() if job.status in {"done", "error"}),
+        key=lambda job: job.finished_at or job.created_at,
+    )
+    keep = max(_MAX_RETAINED_JOBS, 0)
+    stale = terminal if keep == 0 else terminal[:-keep]
+    for job in stale:
+        _JOBS.pop(job.id, None)
+
+
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Durably replace a report without exposing a partial JSON file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        dir=path.parent,
+    )
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary_path, 0o600)
+        os.replace(temporary_path, path)
+        directory_fd = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _new_job_id() -> str:
@@ -84,6 +167,7 @@ async def submit(
     protocol: str = "anthropic",
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
+    revalidate_target: bool = False,
 ) -> str:
     """Queue a detection job and return the job id immediately.
 
@@ -96,22 +180,31 @@ async def submit(
         but capped at Y<X" fraud that the standard tier misses on big
         models. Implies standard (it's a superset).
     """
-    job_id = _new_job_id()
-    job = Job(
-        id=job_id,
-        protocol=protocol,
-        base_url=base_url,
-        target_model=model,
-        mode=mode,
-    )
     async with _LOCK:
+        _evict_completed_locked()
+        pending = sum(
+            job.status in {"queued", "running"} for job in _JOBS.values()
+        )
+        if pending >= _MAX_PENDING:
+            raise QueueFullError("检测队列已满,请稍后重试")
+        job_id = _new_job_id()
+        job = Job(
+            id=job_id,
+            protocol=protocol,
+            base_url=redact_sensitive(base_url, (api_key,)),
+            target_model=redact_sensitive(model, (api_key,)),
+            mode=mode,
+        )
         _JOBS[job_id] = job
-    asyncio.create_task(
+    task = asyncio.create_task(
         _run(
             job_id, base_url, api_key, model, mode, protocol,
             include_long_context, include_long_context_extreme,
+            revalidate_target,
         )
     )
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
     return job_id
 
 
@@ -126,7 +219,7 @@ async def get(job_id: str) -> Job | None:
         if not path.exists():
             continue
         try:
-            report = json.loads(path.read_text(encoding="utf-8"))
+            report = redact_sensitive(json.loads(path.read_text(encoding="utf-8")))
             break
         except (json.JSONDecodeError, OSError):
             continue
@@ -175,6 +268,7 @@ async def _run(
     protocol: str,
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
+    revalidate_target: bool = False,
 ) -> None:
     async with _SEMA:
         async with _LOCK:
@@ -185,6 +279,10 @@ async def _run(
             j.started_at = time.time()
 
         try:
+            transport: httpx.AsyncBaseTransport | None = None
+            if revalidate_target:
+                base_url = await validate_target_url(base_url)
+                transport = await build_safe_transport(base_url)
             cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
             cfg.include_long_context = include_long_context
             cfg.include_long_context_extreme = include_long_context_extreme
@@ -199,8 +297,11 @@ async def _run(
                 cfg.overall_timeout_s = max(cfg.overall_timeout_s, 900.0)
             elif include_long_context:
                 cfg.overall_timeout_s = max(cfg.overall_timeout_s, 300.0)
+            transport_kwargs = {"transport": transport} if transport is not None else {}
             if protocol == "openai":
-                outcome = await _run_openai(base_url, api_key, model, cfg)
+                outcome = await _run_openai(
+                    base_url, api_key, model, cfg, **transport_kwargs
+                )
                 report_protocol = Protocol.OPENAI
                 report_tier = DetectionTier.BEHAVIORAL
                 tier_title = "行为/协议级验证"
@@ -210,23 +311,27 @@ async def _run(
                     "能力是否完整、usage 字段是否符合官方响应形状。"
                 )
             elif protocol == "gemini":
-                outcome = await _run_gemini(base_url, api_key, model, cfg)
+                outcome = await _run_gemini(
+                    base_url, api_key, model, cfg, **transport_kwargs
+                )
                 report_protocol = Protocol.GEMINI
                 report_tier = DetectionTier.PROTOCOL
                 tier_title = "协议级验证"
                 tier_message = (
                     "本检测通过 OpenAI 兼容协议 (POST /chat/completions) 探测 Gemini 中转站,"
                     "验证响应字段、tool 调用、结构化输出、流式一致性和 usage 字段是否符合 OpenAI 规范。"
-                    "它不提供加密级模型真伪证明。"
+                    "它不提供模型来源的官方身份认证。"
                 )
             elif protocol == "anthropic":
-                outcome = await _run_anthropic(base_url, api_key, model, cfg)
+                outcome = await _run_anthropic(
+                    base_url, api_key, model, cfg, **transport_kwargs
+                )
                 report_protocol = Protocol.ANTHROPIC
-                report_tier = DetectionTier.CRYPTOGRAPHIC
-                tier_title = "加密级验证"
+                report_tier = DetectionTier.BEHAVIORAL
+                tier_title = "多维证据级验证"
                 tier_message = (
-                    "Claude thinking signature 来自 Anthropic 服务端签名。"
-                    "通过该项时,它是当前检测集中最高可信度的真伪信号。"
+                    "Thinking signature 当前仅检查透传形态,不做独立密码学验签；"
+                    "请结合身份、行为、能力与协议证据判断风险。"
                 )
             else:
                 raise ValueError(f"unsupported protocol: {protocol}")
@@ -268,11 +373,11 @@ async def _run(
                 self_reported_identity=self_id,
                 detected_non_anthropic_brands=brands,
             )
-            report_dict = json.loads(report.model_dump_json())
-            report_path(job_id, protocol).write_text(
-                json.dumps(report_dict, indent=2, ensure_ascii=False),
-                encoding="utf-8",
+            report_dict = redact_sensitive(
+                json.loads(report.model_dump_json()),
+                (api_key,),
             )
+            _atomic_write_json(report_path(job_id, protocol), report_dict)
 
             async with _LOCK:
                 if job_id in _JOBS:
@@ -280,13 +385,18 @@ async def _run(
                     _JOBS[job_id].protocol = protocol
                     _JOBS[job_id].report = report_dict
                     _JOBS[job_id].finished_at = time.time()
+                    _evict_completed_locked()
 
         except Exception as e:  # noqa: BLE001 — bubble error into job state
             async with _LOCK:
                 if job_id in _JOBS:
                     _JOBS[job_id].status = "error"
-                    _JOBS[job_id].error = f"{type(e).__name__}: {e}"
+                    _JOBS[job_id].error = redact_sensitive(
+                        f"{type(e).__name__}: {e}",
+                        (api_key,),
+                    )
                     _JOBS[job_id].finished_at = time.time()
+                    _evict_completed_locked()
 
 
 async def _run_anthropic(
@@ -294,6 +404,8 @@ async def _run_anthropic(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
 ):
     from relay_detector.protocols.anthropic import (
         build_detectors,
@@ -301,7 +413,12 @@ async def _run_anthropic(
         make_client,
     )
 
-    async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
+    async with make_client(
+        base_url,
+        api_key,
+        timeout=cfg.request_timeout_s,
+        transport=transport,
+    ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
         return await runner.run(model)
 
@@ -311,6 +428,8 @@ async def _run_openai(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
 ):
     from relay_detector.protocols.openai import (
         build_detectors,
@@ -318,7 +437,12 @@ async def _run_openai(
         make_client,
     )
 
-    async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
+    async with make_client(
+        base_url,
+        api_key,
+        timeout=cfg.request_timeout_s,
+        transport=transport,
+    ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
         return await runner.run(model)
 
@@ -328,6 +452,8 @@ async def _run_gemini(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    *,
+    transport: httpx.AsyncBaseTransport | None = None,
 ):
     from relay_detector.protocols.gemini import (
         build_detectors,
@@ -335,6 +461,11 @@ async def _run_gemini(
         make_client,
     )
 
-    async with make_client(base_url, api_key, timeout=cfg.request_timeout_s) as client:
+    async with make_client(
+        base_url,
+        api_key,
+        timeout=cfg.request_timeout_s,
+        transport=transport,
+    ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
         return await runner.run(model)
