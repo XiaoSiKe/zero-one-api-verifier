@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}OpenAI API 中转站检测 · GPT 包装层风险 | 零一智鉴{% endblock %}
+{% block description %}免费评估 OpenAI / GPT 中转站风险 — 通过 7 个基础 Chat Completions 检测 + 1 个按需长上下文项,发现 usage 字段中的 Claude / Gemini 包装层可疑痕迹。{% endblock %}
+{% block og_title %}OpenAI 中转站检测 · GPT 协议与包装层风险{% endblock %}
+{% block og_description %}7 个基础项 + 1 个按需长上下文项,usage 字段包装层风险证据。免费、不留 key、可分享报告。{% endblock %}
+{% block canonical %}https://mix.01yapi.cc/openai{% endblock %}
+{% block og_url %}https://mix.01yapi.cc/openai{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "零一智鉴 · OpenAI 中转站检测",
+  "alternateName": ["OpenAI API 中转站检测", "GPT relay verifier", "ChatGPT 中转站检测"],
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "API Verification Tool",
+  "operatingSystem": "Web Browser",
+  "url": "https://mix.01yapi.cc/openai",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "featureList": [
+    "Chat Completions 协议合规检查",
+    "function calling 结构 + call_ ID 校验",
+    "structured output / response_format strict 模式校验",
+    "Stream 与 non-stream 一致性比对",
+    "usage 字段后端指纹识别(claude_*, gemini_*, usage_source 等)",
+    "model 字段一致性 + 多次响应稳定性",
+    "Token 用量异常检测",
+    "可分享 JPG / HTML 报告"
+  ],
+  "description": "零一智鉴通过 7 个基础 OpenAI Chat Completions 检测和 1 个按需长上下文项,评估 OpenAI / GPT 中转站的协议、能力和用量风险,发现 Claude / Gemini 包装层的可疑痕迹。"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?","acceptedAnswer":{"@type":"Answer","text":"看响应里有没有「穿帮」的字段。OpenAI 官方回包只会出现三个 token 计数字段;如果中转站偷偷把请求转给 Claude 后端、再包装成 OpenAI 格式发回来,Anthropic 那边的字段经常会跟着漏出来。零一智鉴抓到这种本不该出现的字段就会标记成严重问题,把整体评级降为「小心使用」。简单说:正版 GPT 会按 OpenAI 自家说明书回话,冒牌包装层经常露出对面厂家的痕迹。"}},
+    {"@type":"Question","name":"我得了 75 分,为什么结论仍是「小心使用」而不是「通过」?","acceptedAnswer":{"@type":"Answer","text":"分数只是其中一个维度。零一智鉴还会看有没有严重问题 — 哪怕分数到了通过线,只要存在 1 条严重问题(比如字段穿帮),整体结论就会降为「小心使用」。这种情况通常意味着接口能用、能返回结果,但跑的可能不是你以为的那个模型。日常聊天可能没大问题,但跑代码或严肃任务建议换一家。"}},
+    {"@type":"Question","name":"测完显示「0 个 GPT 模型可用」,是中转站挂了吗?","acceptedAnswer":{"@type":"Answer","text":"大概率不是中转站坏了,而是这把 key 没开通 GPT 模型权限。很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,没买就调不出对应模型。零一智鉴检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,系统会自动提示你这把 key 实际能用 X 个 Claude 模型,直接点过去就行。"}},
+    {"@type":"Question","name":"为什么 OpenAI 检测只能给出风险证据?","acceptedAnswer":{"@type":"Answer","text":"OpenAI 响应没有可供本服务独立验签的来源证明。零一智鉴只能结合行为、字段格式、能力和 usage 包装层痕迹判断风险。Claude 的 thinking signature 在当前版本也只做透传形态检查,不是官方身份认证。"}}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "如何检测 OpenAI / GPT 中转站协议合规",
+  "totalTime": "PT1M",
+  "estimatedCost": {"@type": "MonetaryAmount", "currency": "USD", "value": "0.005"},
+  "step": [
+    {"@type": "HowToStep", "name": "打开检测页", "text": "访问 https://mix.01yapi.cc/openai"},
+    {"@type": "HowToStep", "name": "填中转站地址", "text": "填 OpenAI-compatible base_url,例如 https://api.example.com 或 https://api.example.com/v1"},
+    {"@type": "HowToStep", "name": "粘贴 API key", "text": "粘贴你的 sk-... key,只用于本次检测"},
+    {"@type": "HowToStep", "name": "选模型 + 模式", "text": "选 gpt-4o-mini / gpt-4o / gpt-5 等,standard 模式约 40 秒"},
+    {"@type": "HowToStep", "name": "开始检测", "text": "点开始检测,等 30-70 秒拿到报告"},
+    {"@type": "HowToStep", "name": "看 usage 字段指纹", "text": "重点看 protocol detector 是否报 usage_contains_claude_fields / usage_source_non_openai 等 critical issue — 出现就基本说明中转站在转协议"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <h1>OpenAI / GPT 中转站检测</h1>
+  <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
+    <strong>零一智鉴</strong>通过 7 个基础 Chat Completions 检测 + <strong>usage 字段包装层证据</strong>,
+    <strong>1 分钟</strong>评估中转站的协议、能力和用量风险,发现 Claude / Gemini 后端包装痕迹。免费、API key 不留存、代码开源。
+  </p>
+</section>
+
+<section class="card protocol-note">
+  <strong>行为/协议级风险评估:</strong>
+  本检测无法可靠区分高配模型真品与低配模型伪装。我们检测的是中转站接口是否符合 OpenAI
+  Chat Completions 协议规范、能力是否完整、usage 字段是否符合官方响应形状。
+</section>
+
+<section class="card form-card">
+  <form id="detect-form" data-endpoint="/api/detect/openai" autocomplete="off">
+    <div class="field">
+      <label for="base_url">中转站接口地址</label>
+      <input type="url" id="base_url" name="base_url" required
+             placeholder="https://api.example.com/v1" />
+      <p class="hint">OpenAI-compatible 根 URL,可填 <code>https://api.example.com</code> 或 <code>https://api.example.com/v1</code>。</p>
+    </div>
+
+    <div class="field">
+      <label for="api_key">API 密钥</label>
+      <input type="password" id="api_key" name="api_key" required
+             placeholder="sk-..." minlength="8" />
+      <p class="hint">仅用于本次检测,不写入报告、不持久化。</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="model">目标模型</label>
+        <div class="combo">
+          <input type="text" id="model" name="model" required
+                 value="gpt-5.5" autocomplete="off"
+                 placeholder="gpt-5.5"
+                 maxlength="200" />
+          <ul class="combo-list" id="model-list" hidden>
+            {% for m in models %}
+            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mode">检测深度</label>
+        <select id="mode" name="mode">
+          <option value="quick">快速 (~15 秒,3 项)</option>
+          <option value="standard" selected>标准 (~40 秒,7 项)</option>
+          <option value="full">完整 (~70 秒,8 项,长上下文按需启用)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
+      <label for="include_long_context">
+        <strong>深度检测:长上下文真实性</strong>
+        <span class="checkbox-hint">
+          额外发 32k → 100k → 200k tokens 探针验证中转站是否真实兑现宣传的
+          context window(识别截断 / 路由到小窗口模型)。失败立即停。
+          <strong>额外成本约 $0.05–$0.50,由你的 API key 支付。</strong>
+        </span>
+      </label>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
+      <label for="include_long_context_extreme">
+        <strong>极限检测:模型完整 context</strong>
+        <span class="checkbox-hint">
+          按模型上限等比探测(如 1M 模型测 32k → 500k → 950k)。
+          能 catch「宣传 1M 实际只给 200k」这类高端中转站欺诈,
+          标准档完全测不到。
+          <strong>额外成本 $0.05–$8,由你的 API key 支付,大模型成本可能很高。</strong>
+        </span>
+      </label>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary specular-button">
+      开始检测
+    </button>
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h2>Chat Completions</h2>
+    <p>验证 <code>chatcmpl-</code>、<code>chat.completion</code>、choices、finish_reason、usage 等官方响应结构。</p>
+  </div>
+  <div class="feature">
+    <h2>能力完整性</h2>
+    <p>执行 tool call 与 JSON schema 探测,识别把 OpenAI 协议包装成简化文本接口的中转层。</p>
+  </div>
+  <div class="feature">
+    <h2>字段差异</h2>
+    <p>记录 stream/non-stream 一致性与 usage 字段结构,识别常见包装层和协议适配异常。</p>
+  </div>
+</section>
+
+<section class="faq" id="faq">
+  <h2>常见问题(精选)</h2>
+
+  <details class="faq-item" open>
+    <summary>我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?</summary>
+    <div class="faq-body">
+      <p>看响应里有没有「穿帮」的字段。OpenAI 官方回包里只会出现三个 token 计数字段;
+        但如果中转站偷偷把你的请求转给了 Claude 后端、再包装成 OpenAI 格式发回来,
+        Anthropic 那边的字段经常会跟着漏出来。零一智鉴一旦在响应里抓到这种本不该出现的字段,
+        就会把它标记成「严重问题」,整体评级降为「小心使用」。</p>
+      <p class="muted small">简单说:正版 GPT 会按 OpenAI 自家说明书回话,
+        冒牌的偷懒包装层经常露出对面厂家的痕迹。</p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>我得了 75 分,为什么结论仍是「小心使用」而不是「通过」?</summary>
+    <div class="faq-body">
+      <p>分数只是其中一个维度。零一智鉴还会看「有没有严重问题」 — 哪怕分数到了通过线,
+        只要存在 1 条严重问题(比如上面说的字段穿帮),整体结论就会降为「小心使用」。</p>
+      <p>遇到这种情况通常意味着:接口能用、能返回结果,但跑的可能不是你以为的那个模型。
+        如果你只是聊天、写写日常文本可能没大问题;但如果用来跑代码、做严肃任务,建议换一家。</p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>测完显示「0 个 GPT 模型可用」,是中转站挂了吗?</summary>
+    <div class="faq-body">
+      <p>大概率不是中转站坏了,而是<strong>这把 key 没开通 GPT 模型权限</strong>。
+        很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,
+        没买就调不出对应模型。</p>
+      <p>零一智鉴检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,
+        系统会自动提示你「这把 key 实际能用 X 个 Claude 模型,要去那边测吗?」直接点过去就行。</p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>为什么 OpenAI 检测只能给出风险证据?</summary>
+    <div class="faq-body">
+      <p>OpenAI 响应没有可供本服务独立验签的来源证明。Claude 的
+        <strong>thinking signature</strong> 在当前版本也只做透传形态检查,不是官方身份认证。</p>
+      <p>OpenAI 这边只能从「行为像不像 GPT、字段格式对不对、能力完不完整」这些间接线索判断,
+        所以我们的口径是「<strong>行为/协议级</strong>」检测 — 能告诉你「看起来正常」或者
+        「看起来可疑」。Claude 检测也应将 thinking signature 与其他证据一起阅读,不能把任何单项当成官方认证。</p>
+    </div>
+  </details>
+
+  <p class="faq-more">
+    更多 OpenAI 中转站问题 → <a href="/faq#openai">/faq#openai</a>
+    · 全部 <a href="/faq">常见问题</a>
+  </p>
+</section>
+
+{# app.js loaded globally by base.html #}
+{% endblock %}

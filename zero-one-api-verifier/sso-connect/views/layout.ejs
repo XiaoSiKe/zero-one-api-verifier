@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <title><%= typeof pageTitle !== 'undefined' ? pageTitle : 'SSO 接入' %> · 零一智鉴</title>
+  <link rel="stylesheet" href="/sso.css">
+</head>
+<body class="page-<%= typeof pageKind !== 'undefined' ? pageKind : 'default' %>">
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="product-mark" aria-label="产品标识">
+    <span class="product-mark__symbol" aria-hidden="true">01</span>
+    <span>零一智鉴 · SSO 接入</span>
+  </header>
+  <main class="shell" id="main" tabindex="-1">

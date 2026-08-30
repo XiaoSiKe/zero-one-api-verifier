@@ -1,0 +1,24 @@
+[Unit]
+Description=ZeroOne / Veridrop — multi-protocol API relay detector
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/veridrop
+Environment=PYTHONUNBUFFERED=1
+Environment=VERIDROP_WEB_DATA_DIR=/opt/veridrop/web_data
+ExecStartPre=/usr/bin/test -r /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+ExecStart=/opt/veridrop/venv/bin/python -m uvicorn web.server:app \
+  --host 127.0.0.1 --port 8765 \
+  --workers 1 \
+  --log-level info \
+  --proxy-headers \
+  --forwarded-allow-ips='127.0.0.1,::1'
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+User=root
+
+[Install]
+WantedBy=multi-user.target

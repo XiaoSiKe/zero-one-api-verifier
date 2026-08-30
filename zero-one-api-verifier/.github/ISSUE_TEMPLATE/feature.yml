@@ -1,0 +1,50 @@
+name: 💡 功能建议 / 新检测项
+description: 提议新的检测项、协议支持或能力验证
+title: "[建议] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 这个建议解决什么问题?
+      description: 请描述你遇到的中转站行为、检测盲区或用户痛点
+      placeholder: |
+        例如:有些中转站会剥离 prompt caching(cache_control)。
+        现在如果没有检测这个能力,用户可能以为缓存生效,实际仍按完整输入计费。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你建议怎么做?
+      description: 可以粗略描述检测思路或页面功能,不需要一次写对
+      placeholder: |
+        增加一个 `cache_control` 检测项:
+        1. 发送带 cache_control: ephemeral 的请求
+        2. 再发送一次相同请求
+        3. 检查第二次 usage.cache_read_input_tokens 是否大于 0
+        4. 如果缓存字段被剥离,判定为 fail
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 建议类型
+      options:
+        - 新检测项
+        - 新协议支持(Bedrock / Vertex / 其他)
+        - Web 页面改进
+        - CLI 改进
+        - 文档改进
+        - 其他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: implement
+    attributes:
+      label: 你是否愿意实现?
+      options:
+        - "愿意,我可以提交 PR"
+        - "可以讨论后再决定"
+        - "暂时只是建议"

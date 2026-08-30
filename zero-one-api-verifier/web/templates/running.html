@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}检测进行中 · 零一智鉴{% endblock %}
+
+{% block content %}
+<section class="card running-card" data-job-id="{{ job_id }}">
+  <div class="spinner" aria-hidden="true"></div>
+  <h1 id="status-headline" aria-live="polite">正在检测中…</h1>
+  <p class="muted">
+    目标模型:<code>{{ job.target_model }}</code> · 检测深度 <code>{{ job.mode }}</code><br/>
+    中转站:<code>{{ job.base_url }}</code>
+  </p>
+  <p class="muted">
+    系统会按协议、检测深度和长上下文选项并行执行真实探针,通常 15–90 秒完成；极限长上下文可能需要数分钟。本页面会自动刷新——你也可以保存本网址稍后再来查看结果。
+  </p>
+  <p class="form-error" id="run-error" role="alert" hidden></p>
+</section>
+
+<script>
+(function () {
+  const id = {{ job_id|tojson }};
+  const headline = document.getElementById('status-headline');
+  const errBox = document.getElementById('run-error');
+  let tries = 0;
+
+  async function poll() {
+    tries++;
+    try {
+      const r = await fetch('/api/status/' + id, {cache: 'no-store'});
+      if (!r.ok) throw new Error('status ' + r.status);
+      const j = await r.json();
+      if (j.status === 'done') {
+        headline.textContent = '检测完成,正在加载报告…';
+        location.reload();
+        return;
+      }
+      if (j.status === 'error') {
+        headline.textContent = '检测失败';
+        errBox.hidden = false;
+        errBox.textContent = j.error || '未知错误';
+        return;
+      }
+      if (j.status === 'running') {
+        headline.textContent = '正在检测中…';
+      } else {
+        headline.textContent = '排队中…';
+      }
+    } catch (e) {
+      if (tries > 60) {
+        errBox.hidden = false;
+        errBox.textContent = '轮询失败:' + e.message;
+        return;
+      }
+    }
+    setTimeout(poll, 2500);
+  }
+  poll();
+})();
+</script>
+{% endblock %}

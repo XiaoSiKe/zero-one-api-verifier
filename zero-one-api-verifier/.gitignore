@@ -1,0 +1,22 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.env
+.env.local
+.env.bak
+.cache/
+*.log
+*.bak
+.DS_Store
+report*.json
+out/
+tmp/
+web_data/
+
+# Maintainer-only tools — kept locally, not in public tree
+scripts/push-both.sh

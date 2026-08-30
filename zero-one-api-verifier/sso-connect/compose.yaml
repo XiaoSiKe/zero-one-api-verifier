@@ -1,0 +1,21 @@
+services:
+  sso-connect:
+    build: .
+    environment:
+      NODE_ENV: development
+      SSO_DEMO_MODE: "1"
+      SSO_HOST: 0.0.0.0
+      SSO_PORT: "8020"
+      SSO_ISSUER: http://127.0.0.1:8020
+      SSO_DEMO_MERCHANT_HOST: 0.0.0.0
+      SSO_DEMO_MERCHANT_PORT: "8021"
+      SSO_DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:8020:8020"
+      - "127.0.0.1:8021:8021"
+    volumes:
+      - zeroone-sso-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  zeroone-sso-data:

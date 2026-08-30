@@ -1,0 +1,312 @@
+{
+  "base_url": "https://api.anthropic.com",
+  "api_key_masked": "sk-ant••••••AA",
+  "target_model": "claude-haiku-4-5",
+  "mode": "full",
+  "timestamp": "2026-04-27T11:10:16.054468Z",
+  "total_score": 100.0,
+  "verdict": "passed",
+  "results": [
+    {
+      "name": "identity",
+      "display_name": "身份一致性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "response_text": "I'm Claude, an AI assistant made by Anthropic. I'm Claude 3.5 Sonnet, the latest version of my model line. That's the essential information—I don't have access to more granular version details beyond that.",
+        "required_hits": [
+          "\\bclaude\\b",
+          "\\banthropic\\b"
+        ],
+        "competitor_hits": []
+      },
+      "duration_ms": 1167,
+      "error": null
+    },
+    {
+      "name": "behavioral_signature",
+      "display_name": "行为签名验证",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 15.0,
+      "details": {
+        "signatures": [
+          {
+            "id": "markdown_bold_style",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "# Hash Tables\n\nA **hash table** is a data structure that implements an associative array—a structure that maps keys to values using a **hash function** to compute an index into an array of buckets or "
+          },
+          {
+            "id": "list_structure_preference",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "# 4 Reasons Why Unit Tests Are Valuable\n\n1. **Early Bug Detection**\n   Unit tests catch bugs during development before code reaches production, making them cheaper and easier to fix than discovering i"
+          },
+          {
+            "id": "refusal_helpfulness_tone",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "I'd push back on this approach. Here's why it's risky:\n\n**Practical problems:**\n- Senior roles involve specific responsibilities (mentoring, architecture decisions, stakeholder management). Fabricated"
+          }
+        ],
+        "hits": 3,
+        "total": 3
+      },
+      "duration_ms": 12133,
+      "error": null
+    },
+    {
+      "name": "thinking_signature",
+      "display_name": "思维签名验证",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 25.0,
+      "details": {
+        "thinking_params": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        },
+        "output_config_sent": null,
+        "content_block_types_seen": [
+          "thinking",
+          "text"
+        ],
+        "thinking_block_seen": true,
+        "thinking_block_type": "thinking",
+        "thinking_text_chars": 1422,
+        "signature_received": true,
+        "signature_length": 2280,
+        "signature_prefix": "EqcNCmMIDRgCKkBmrDxzKRoWNLmDkRlM",
+        "stop_reason": "end_turn",
+        "evaluation": "ok"
+      },
+      "duration_ms": 5044,
+      "error": null
+    },
+    {
+      "name": "consistency",
+      "display_name": "模型一致性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 10.0,
+      "details": {
+        "request_model": "claude-haiku-4-5",
+        "response_model": "claude-haiku-4-5-20251001",
+        "model_match": true,
+        "n_runs": 3,
+        "output_tokens_seq": [
+          52,
+          47,
+          52
+        ],
+        "stability_cv": 0.047,
+        "stability_label": "stable"
+      },
+      "duration_ms": 6408,
+      "error": null
+    },
+    {
+      "name": "knowledge",
+      "display_name": "知识准确度",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 10.0,
+      "details": {
+        "passes": 5,
+        "total": 5,
+        "per_question": [
+          {
+            "id": "anthropic_ceo",
+            "passed": true,
+            "answer": "Dario Amodei"
+          },
+          {
+            "id": "anthropic_president",
+            "passed": true,
+            "answer": "Daniela Amodei"
+          },
+          {
+            "id": "constitutional_ai",
+            "passed": true,
+            "answer": "Constitutional AI is a method for training AI systems to follow a set of principles or rules without relying solely on human feedback."
+          },
+          {
+            "id": "claude_first_release",
+            "passed": true,
+            "answer": "2023"
+          },
+          {
+            "id": "anthropic_hq",
+            "passed": true,
+            "answer": "San Francisco"
+          }
+        ],
+        "request_count": 1
+      },
+      "duration_ms": 3427,
+      "error": null
+    },
+    {
+      "name": "pdf",
+      "display_name": "PDF文档识别",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 8.0,
+      "details": {
+        "magic_string": "MAGIC-7F3K-VERIFY-CLAUDE-RELAY-DETECTOR",
+        "response_text": "MAGIC-7F3K-VERIFY-CLAUDE-RELAY-DETECTOR",
+        "evaluation": "magic_found",
+        "stop_reason": "end_turn"
+      },
+      "duration_ms": 3705,
+      "error": null
+    },
+    {
+      "name": "structured_output",
+      "display_name": "结构化输出",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 12.0,
+      "details": {
+        "sub_checks": {
+          "has_tool_use_block": {
+            "value": true,
+            "pass": true
+          },
+          "id_prefix": {
+            "value": "toolu_01VeEmavDCA6mSBEb6mJQ9ma",
+            "pass": true
+          },
+          "name": {
+            "value": "get_weather",
+            "pass": true
+          },
+          "input_schema": {
+            "value": {
+              "city": "Tokyo",
+              "unit": "celsius"
+            },
+            "pass": true
+          },
+          "stop_reason": {
+            "value": "tool_use",
+            "pass": true
+          },
+          "caller": {
+            "value": {
+              "<type>": "dict",
+              "<keys>": [
+                "type"
+              ]
+            },
+            "pass": true,
+            "note": "non-string caller (Anthropic API drift) — recorded, not penalized"
+          }
+        },
+        "content_block_types": [
+          "tool_use"
+        ],
+        "stop_reason": "tool_use"
+      },
+      "duration_ms": 4491,
+      "error": null
+    },
+    {
+      "name": "integrity",
+      "display_name": "响应完整性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "ns_text": "```json\n{\"verify\":\"abc123\",\"n\":42}\n```",
+        "ns_usage": {
+          "input": 27,
+          "output": 18
+        },
+        "stream_text": "```json\n{\"verify\":\"abc123\",\"n\":42}\n```",
+        "stream_stop_reason": "end_turn",
+        "stream_message_delta_usage": {
+          "input_tokens": 27,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 18
+        },
+        "stream_message_start_input_tokens": 27,
+        "stream_message_start_seen": true,
+        "sub_checks": {
+          "similarity": {
+            "ratio": 100.0,
+            "pass": true
+          },
+          "char_per_token": {
+            "value": 2.11,
+            "pass": true
+          },
+          "stream_output_tokens": {
+            "stream": 18,
+            "ns": 18,
+            "pass": true
+          },
+          "stop_reason": {
+            "value": "end_turn",
+            "pass": true
+          },
+          "input_tokens": {
+            "ns": 27,
+            "stream": 27,
+            "diff": 0,
+            "tolerance": 5,
+            "pass": true
+          }
+        }
+      },
+      "duration_ms": 6488,
+      "error": null
+    },
+    {
+      "name": "protocol",
+      "display_name": "协议规范性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "observation_count": 13,
+        "issue_count": 0,
+        "issues": []
+      },
+      "duration_ms": null,
+      "error": null
+    },
+    {
+      "name": "message_id",
+      "display_name": "消息标识规范",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "observation_count": 13,
+        "violations": [],
+        "samples": {}
+      },
+      "duration_ms": null,
+      "error": null
+    }
+  ],
+  "performance": {
+    "total_latency_ms": 12140,
+    "ttft_ms": null,
+    "tokens_per_second": null,
+    "usage": {
+      "input_tokens": 2916,
+      "output_tokens": 2213,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "server_tool_use": null
+    },
+    "request_count": 13,
+    "backoff_events": 0
+  },
+  "summary": "优秀"
+}

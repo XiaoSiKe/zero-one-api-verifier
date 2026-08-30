@@ -1,0 +1,23 @@
+<%- include('layout', { pageTitle: '登录成功', pageKind: 'success' }) %>
+<%
+  const displayMerchant = typeof merchantName !== 'undefined' ? merchantName : '演示商家';
+  const displayUser = typeof userLabel !== 'undefined' ? userLabel : (typeof email !== 'undefined' ? email : '零一智鉴用户');
+  const totalUsers = typeof userCount !== 'undefined' ? userCount : 1;
+%>
+
+<section class="surface success" aria-labelledby="page-title">
+  <div class="result-mark result-mark--success" aria-hidden="true">✓</div>
+  <header class="page-heading page-heading--compact">
+    <h1 id="page-title">已进入 <%= displayMerchant %></h1>
+    <p>商家账号已就绪；再次登录会复用同一个账号。</p>
+  </header>
+
+  <dl class="account-summary">
+    <div><dt>当前用户</dt><dd><%= displayUser %></dd></div>
+    <div><dt>商家用户数</dt><dd><%= totalUsers %></dd></div>
+  </dl>
+
+  <a class="button button--primary button--full" href="<%= typeof continueUrl !== 'undefined' ? continueUrl : 'http://127.0.0.1:8020/connect?demo=1&connected=1' %>">返回接入结果</a>
+</section>
+
+<%- include('layout-end') %>

@@ -1,0 +1,315 @@
+{
+  "base_url": "https://api.anthropic.com",
+  "api_key_masked": "sk-ant••••••AA",
+  "target_model": "claude-opus-4-6",
+  "mode": "full",
+  "timestamp": "2026-04-27T15:49:40.102928Z",
+  "total_score": 100.0,
+  "verdict": "passed",
+  "results": [
+    {
+      "name": "identity",
+      "display_name": "身份一致性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "response_text": "I'm Claude, made by Anthropic. I don't know my exact model version (e.g., Claude 3 Opus, Sonnet, Haiku, or Claude 3.5, etc.) — I'm not given that specific detail in our conversation. If you need to know the exact version, the platform you're accessing me through may have that information.",
+        "required_hits": [
+          "\\bclaude\\b",
+          "\\banthropic\\b"
+        ],
+        "competitor_hits": [],
+        "detected_non_anthropic_brands": []
+      },
+      "duration_ms": 3688,
+      "error": null
+    },
+    {
+      "name": "behavioral_signature",
+      "display_name": "行为签名验证",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 15.0,
+      "details": {
+        "signatures": [
+          {
+            "id": "markdown_bold_style",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "A **hash table** is a data structure that stores data in key-value pairs, allowing for highly efficient insertion, deletion, and lookup operations — typically in O(1) average time. It works by using a"
+          },
+          {
+            "id": "list_structure_preference",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "## 4 Reasons Why Writing Unit Tests Is Valuable\n\n1. **Early Bug Detection** — Unit tests catch bugs at the smallest level of code (functions, methods, classes) during development, long before they rea"
+          },
+          {
+            "id": "refusal_helpfulness_tone",
+            "hit": true,
+            "weight": 1.0,
+            "response_excerpt": "No, I won't help with that. Here's why, and what I'd suggest instead.\n\n**Why this is a bad idea beyond ethics:**\n\n- **It backfires in interviews.** You'll be asked to speak in detail about scope, team"
+          }
+        ],
+        "hits": 3,
+        "total": 3
+      },
+      "duration_ms": 26840,
+      "error": null
+    },
+    {
+      "name": "thinking_signature",
+      "display_name": "思维签名验证",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 25.0,
+      "details": {
+        "thinking_params": {
+          "type": "enabled",
+          "budget_tokens": 2000
+        },
+        "output_config_sent": null,
+        "content_block_types_seen": [
+          "thinking",
+          "text"
+        ],
+        "thinking_block_seen": true,
+        "thinking_block_type": "thinking",
+        "thinking_text_chars": 358,
+        "signature_received": true,
+        "signature_length": 696,
+        "signature_prefix": "EoMEClkIDRgCKkCsZnJTuuSQx7KdHYSL",
+        "stop_reason": "end_turn",
+        "evaluation": "ok"
+      },
+      "duration_ms": 7699,
+      "error": null
+    },
+    {
+      "name": "consistency",
+      "display_name": "模型一致性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 10.0,
+      "details": {
+        "request_model": "claude-opus-4-6",
+        "response_model": "claude-opus-4-6",
+        "model_match": true,
+        "n_runs": 3,
+        "output_tokens_seq": [
+          56,
+          56,
+          56
+        ],
+        "stability_cv": 0.0,
+        "stability_label": "stable"
+      },
+      "duration_ms": 14321,
+      "error": null
+    },
+    {
+      "name": "knowledge",
+      "display_name": "知识准确度",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 10.0,
+      "details": {
+        "passes": 5,
+        "total": 5,
+        "per_question": [
+          {
+            "id": "anthropic_ceo",
+            "passed": true,
+            "answer": "Dario Amodei"
+          },
+          {
+            "id": "anthropic_president",
+            "passed": true,
+            "answer": "Daniela Amodei"
+          },
+          {
+            "id": "constitutional_ai",
+            "passed": true,
+            "answer": "Constitutional AI is a method developed by Anthropic for training AI systems to be helpful, harmless, and honest by using a set of principles (a \"constitution\") to guide self-improvement and evaluatio"
+          },
+          {
+            "id": "claude_first_release",
+            "passed": true,
+            "answer": "2023"
+          },
+          {
+            "id": "anthropic_hq",
+            "passed": true,
+            "answer": "San Francisco"
+          }
+        ],
+        "request_count": 1
+      },
+      "duration_ms": 8521,
+      "error": null
+    },
+    {
+      "name": "pdf",
+      "display_name": "PDF文档识别",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 8.0,
+      "details": {
+        "magic_string": "MAGIC-7F3K-VERIFY-CLAUDE-RELAY-DETECTOR",
+        "response_text": "MAGIC-7F3K-VERIFY-CLAUDE-RELAY-DETECTOR",
+        "evaluation": "magic_found",
+        "stop_reason": "end_turn"
+      },
+      "duration_ms": 8419,
+      "error": null
+    },
+    {
+      "name": "structured_output",
+      "display_name": "结构化输出",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 12.0,
+      "details": {
+        "sub_checks": {
+          "has_tool_use_block": {
+            "value": true,
+            "pass": true
+          },
+          "id_prefix": {
+            "value": "toolu_01G56gbtdAQfi6ixpXGoP99X",
+            "pass": true
+          },
+          "name": {
+            "value": "get_weather",
+            "pass": true
+          },
+          "input_schema": {
+            "value": {
+              "city": "Tokyo",
+              "unit": "celsius"
+            },
+            "pass": true
+          },
+          "stop_reason": {
+            "value": "tool_use",
+            "pass": true
+          },
+          "caller": {
+            "value": {
+              "<type>": "dict",
+              "<keys>": [
+                "type"
+              ]
+            },
+            "pass": true,
+            "note": "non-string caller (Anthropic API drift) — recorded, not penalized"
+          }
+        },
+        "content_block_types": [
+          "tool_use"
+        ],
+        "stop_reason": "tool_use"
+      },
+      "duration_ms": 9697,
+      "error": null
+    },
+    {
+      "name": "integrity",
+      "display_name": "响应完整性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "ns_text": "{\"verify\":\"abc123\",\"n\":42}",
+        "ns_usage": {
+          "input": 27,
+          "output": 13
+        },
+        "stream_text": "{\"verify\":\"abc123\",\"n\":42}",
+        "stream_stop_reason": "end_turn",
+        "stream_message_delta_usage": {
+          "input_tokens": 27,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 13
+        },
+        "stream_message_start_input_tokens": 27,
+        "stream_message_start_seen": true,
+        "sub_checks": {
+          "similarity": {
+            "ratio": 100.0,
+            "pass": true
+          },
+          "char_per_token": {
+            "value": 2.0,
+            "pass": true
+          },
+          "stream_output_tokens": {
+            "stream": 13,
+            "ns": 13,
+            "pass": true
+          },
+          "stop_reason": {
+            "value": "end_turn",
+            "pass": true
+          },
+          "input_tokens": {
+            "ns": 27,
+            "stream": 27,
+            "diff": 0,
+            "tolerance": 5,
+            "pass": true
+          }
+        }
+      },
+      "duration_ms": 13684,
+      "error": null
+    },
+    {
+      "name": "protocol",
+      "display_name": "协议规范性",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "observation_count": 13,
+        "issue_count": 0,
+        "issues": []
+      },
+      "duration_ms": null,
+      "error": null
+    },
+    {
+      "name": "message_id",
+      "display_name": "消息标识规范",
+      "status": "pass",
+      "score": 100.0,
+      "weight": 5.0,
+      "details": {
+        "observation_count": 13,
+        "violations": [],
+        "samples": {}
+      },
+      "duration_ms": null,
+      "error": null
+    }
+  ],
+  "performance": {
+    "total_latency_ms": 26846,
+    "ttft_ms": null,
+    "tokens_per_second": null,
+    "usage": {
+      "input_tokens": 2918,
+      "output_tokens": 1751,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0,
+      "server_tool_use": null
+    },
+    "request_count": 13,
+    "backoff_events": 0
+  },
+  "summary": "优秀",
+  "self_reported_identity": "I'm Claude, made by Anthropic. I don't know my exact model version (e.g., Claude 3 Opus, Sonnet, Haiku, or Claude 3.5, etc.) — I'm not given that specific detail in our conversation. If you need to know the exact version, the platform you're accessing me through may have that information.",
+  "detected_non_anthropic_brands": []
+}

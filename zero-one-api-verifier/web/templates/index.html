@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Claude API 中转站检测 · thinking 签名透传与多维证据 | 零一智鉴{% endblock %}
+{% block description %}免费检测 Claude API 中转站的透传风险 — 检查 thinking signature 透传形态 + 10 项辅助证据,并检查 Token 用量是否虚报。无需注册,API key 不留存,代码开源。{% endblock %}
+{% block og_title %}Claude API 中转站真假检测 · 1 分钟识破 Kiro / Amazon Q 等替身{% endblock %}
+{% block og_description %}thinking signature 透传形态 + 10 项多维检测 + Token 用量风险识别。免费、不留 key、可分享 JPG 报告。{% endblock %}
+{% block canonical %}https://mix.01yapi.cc/claude{% endblock %}
+{% block og_url %}https://mix.01yapi.cc/claude{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "零一智鉴 · Claude 中转站检测",
+  "alternateName": ["Claude API 中转站检测", "Claude relay verifier"],
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "API Verification Tool",
+  "operatingSystem": "Web Browser",
+  "url": "https://mix.01yapi.cc/claude",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "featureList": [
+    "thinking signature 透传形态与多维证据评估",
+    "12 项独立检测维度(身份/行为/知识/PDF/工具调用/协议/流式/Token 用量/长上下文)",
+    "字段级跟官方 Anthropic baseline 1:1 对比",
+    "Stream / non-stream 一致性校验",
+    "tool_use ID 前缀合规检查",
+    "PDF 多模态能力检测",
+    "Kiro / Amazon Q / Bedrock 类包装层风险证据",
+    "可分享 JPG / HTML 报告"
+  ],
+  "description": "零一智鉴通过 Claude thinking signature 透传形态等 12 项检测维度,评估 AI API 中转站的身份、行为、能力与协议风险,发现 Kiro / Amazon Q / Bedrock 类包装层的可疑痕迹,并检查 Token 用量和长上下文兑现情况。"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"Claude API 中转站怎么评估风险?","acceptedAnswer":{"@type":"Answer","text":"综合检查 thinking 块与 signature 的透传形态、身份回答、行为特征、能力和协议字段。signature 形态是高价值信号,但当前服务不做独立密码学验签,不能单独据此证明模型来源。"}},
+    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 包装层风险怎么发现?","acceptedAnswer":{"@type":"Answer","text":"这类 AWS 路由可能不透传 Claude thinking signature。零一智鉴会将字段缺失记为高风险证据,并结合身份、行为、能力和协议项综合判断,不把单一字段当作官方身份证明。"}},
+    {"@type":"Question","name":"零一智鉴的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
+    {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会,但成本极低。完整模式约发 16 个请求,Haiku 约 0.012 美元量级,Sonnet / Opus 更高。费用从你的 API key 对应中转站账户扣,零一智鉴自身不收费。"}},
+    {"@type":"Question","name":"零一智鉴会偷我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"不会。API key 只存在 job 内存对象里,job 跑完(成功或失败)立即清空,不写报告 JSON、不写日志、不写磁盘。报告里 key 是脱敏形式 (sk-y7xU••••••0h)。代码完全开源可验证,也可以自己 clone 部署。"}},
+    {"@type":"Question","name":"支持哪些 Claude 模型?","acceptedAnswer":{"@type":"Answer","text":"Claude Opus 4.7、Sonnet 4.6、Haiku 4.5、Opus 4.6、Sonnet 4.5、Opus 4.5、Opus 4.1。检测器自动适配各模型的 thinking 模式(extended vs adaptive)和 PDF 页数上限。"}}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "如何评估 Claude API 中转站的透传风险",
+  "totalTime": "PT1M",
+  "estimatedCost": {"@type": "MonetaryAmount", "currency": "USD", "value": "0.02"},
+  "step": [
+    {"@type": "HowToStep", "name": "打开检测页", "text": "访问 https://mix.01yapi.cc/claude"},
+    {"@type": "HowToStep", "name": "填中转站地址", "text": "在 base_url 输入框填中转站根 URL,例如 https://api.example.com"},
+    {"@type": "HowToStep", "name": "粘贴 API key", "text": "在 API 密钥框粘贴你的 sk-... key,只用于本次检测,不会被记录"},
+    {"@type": "HowToStep", "name": "选模型 + 模式", "text": "下拉自动列出该 key 在该中转站可用的模型,选 standard 模式覆盖 9 项检测约 45 秒"},
+    {"@type": "HowToStep", "name": "开始检测", "text": "点开始检测,等 30-75 秒拿到报告"},
+    {"@type": "HowToStep", "name": "综合阅读证据", "text": "查看 thinking_signature 的透传形态,并结合身份、行为、能力与协议项判断整体风险,不要把单项分数当成官方认证"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <h1>这家 Claude API 中转站,透传风险有多高?</h1>
+  <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
+    <strong>零一智鉴</strong>用 Claude <strong>thinking signature 透传形态</strong> + 10 项身份、行为、能力与协议检测,
+    <strong>1 分钟</strong>综合身份、行为、能力和协议证据,发现 Kiro / Amazon Q / Bedrock 类包装层的可疑痕迹。免费、API key 不留存、代码开源。
+  </p>
+</section>
+
+<section class="card form-card">
+  <form id="detect-form" data-endpoint="/api/detect/claude" autocomplete="off">
+    <div class="field">
+      <label for="base_url">中转站接口地址</label>
+      <input type="url" id="base_url" name="base_url" required
+             placeholder="https://api.example.com" />
+      <p class="hint">中转站根 URL,零一智鉴将向其 <code>/v1/messages</code> 发送测试请求。</p>
+    </div>
+
+    <div class="field">
+      <label for="api_key">API 密钥</label>
+      <input type="password" id="api_key" name="api_key" required
+             placeholder="sk-..." minlength="8" />
+      <p class="hint">全程 HTTPS 传输,仅用于本次检测,不写日志、不持久化、检测完即丢弃。</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="model">目标模型</label>
+        <div class="combo">
+          <input type="text" id="model" name="model" required
+                 value="claude-haiku-4-5-20251001" autocomplete="off"
+                 placeholder="claude-haiku-4-5-20251001"
+                 maxlength="200" />
+          <ul class="combo-list" id="model-list" hidden>
+            {% for m in models %}
+            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="hint">点击/聚焦可见预设模型;若中转站用 <code>claude-opus-4-7-thinking</code> 等自定义名,直接输入即可。</p>
+      </div>
+      <div class="field">
+        <label for="mode">检测深度</label>
+        <select id="mode" name="mode">
+          <option value="quick">快速 (~15 秒,5 项核心)</option>
+          <option value="standard">标准 (~45 秒,9 项)</option>
+          <option value="full" selected>完整 (~75 秒,全 11 项,推荐)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
+      <label for="include_long_context">
+        <strong>深度检测:长上下文真实性</strong>
+        <span class="checkbox-hint">
+          额外发 32k → 100k → 200k tokens 探针验证中转站是否真实兑现宣传的
+          context window(识别截断 / 路由到小窗口模型)。失败立即停。
+          <strong>额外成本约 $0.05–$1.00,由你的 API key 支付。</strong>
+        </span>
+      </label>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
+      <label for="include_long_context_extreme">
+        <strong>极限检测:模型完整 context</strong>
+        <span class="checkbox-hint">
+          按模型上限等比探测(Sonnet 4.6 / Opus 4.6 / Opus 4.7 都是 1M,会测到 950k)。
+          能 catch「宣传 1M 实际只给 200k」这类高端中转站欺诈,
+          标准档完全测不到。
+          <strong>额外成本 $0.05–$8,大模型成本可能很高,由你的 API key 支付。</strong>
+        </span>
+      </label>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary specular-button">
+      开始检测
+    </button>
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h2>Thinking 签名透传形态 ⭐</h2>
+    <p>检查 Claude thinking 块与不透明 <code>signature</code> 字段是否被透传、长度形态是否符合预期。它是高价值协议证据,但不是独立验签或官方身份认证。</p>
+  </div>
+  <div class="feature">
+    <h2>字段级 baseline 对比</h2>
+    <p>逐字段比对 <code>input_tokens</code>、<code>tool_use</code> ID、SSE 事件序列、stream/non-stream 一致性,与官方 Anthropic 接口 1:1 对照。</p>
+  </div>
+  <div class="feature">
+    <h2>一键分享报告</h2>
+    <p>每次检测都有永久 URL 与可下载 JPG 图片,方便贴到群聊、论坛、文档,或在选购前做技术核验存档。</p>
+  </div>
+</section>
+
+<!-- ============================== FAQ ============================== -->
+<section class="faq" id="faq" data-mode="layperson">
+  <div class="faq-header">
+    <h2>常见问题(精选)</h2>
+    <div class="faq-mode-toggle" role="tablist" aria-label="选择回答风格">
+      <button type="button" role="tab" aria-selected="true"
+        class="faq-mode-btn faq-mode-active" data-mode="layperson">
+        通俗解释
+      </button>
+      <button type="button" role="tab" aria-selected="false"
+        class="faq-mode-btn" data-mode="developer">
+        开发者技术
+      </button>
+    </div>
+  </div>
+
+  <details class="faq-item" open>
+    <summary>thinking signature 是什么?它能单独证明模型来源吗?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        Claude 在思考问题时会返回一个不透明的 <strong>signature</strong>。
+        零一智鉴检查这个字段有没有被透传、形态是否异常。缺失或形态异常代表中转链路存在高风险,
+        但仍需结合其他检测项,不能只凭这一项断定模型来源。
+      </p>
+      <p data-mode="developer">
+        thinking signature 是 Claude 启用扩展思考时,响应里 <code>signature</code> 字段返回的
+        <strong>服务端加密产物</strong>,长度 500-2000 字符。这个签名由 Anthropic 服务端生成,
+        当前零一智鉴检查该字段是否被完整透传及其长度形态,并把它作为 25% 权重的协议证据。
+        本服务不持有独立官方凭据做密码学验签,因此必须结合其他检测项判断风险。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>Claude 中转站怎么挑?哪些信号说明它靠谱?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        三步傻瓜判断:① 用零一智鉴测一次,<strong>总分 85 分以上</strong>说明多项协议、行为与能力证据表现良好,
+        但高分不等于官方身份认证;② 看页面有没有<strong>「严重」标记</strong>,
+        有就说明它可能在偷换模型,直接换一家;③ 去<a href="/leaderboard">红黑榜</a>查这家中转站
+        的历史记录,看其他人测出来什么样,<strong>测过 10 次以上仍稳定高分</strong>的更可信。
+        便宜的中转站多半有水分,看分数比看价格重要。
+      </p>
+      <p data-mode="developer">
+        关键看 4 点:① 跑零一智鉴 full 模式看 thinking signature 是否拿到 100 分;
+        ② 看 usage 字段有没有 <code>claude_*</code> 之外的异源痕迹
+        (e.g. <code>usage_source: anthropic</code> 出现在 OpenAI 响应里说明被中转套壳);
+        ③ 看 stream / non-stream 在同一 prompt 上的 input_tokens / output_tokens 差是否 ≤ 5%;
+        ④ 看消息 id 是否符合 <code>msg_</code> / <code>toolu_</code> / <code>srvtoolu_</code> 前缀规范,
+        UUID-like id 是中转站常见伪造手法。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>Kiro / Amazon Q 包装层风险怎么发现?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        有些中转站后端其实用的是 Amazon 自家"包装过的 Claude"(产品名叫 Kiro 或 Amazon Q)。
+        Amazon 这版会把 Claude 的<strong>思考"指纹"删掉</strong> — 因为他们走的是简化接口。
+        零一智鉴会把 thinking signature 缺失记为高风险证据,
+        再结合身份、行为、能力和协议特征给出整体结论。
+      </p>
+      <p data-mode="developer">
+        Kiro 和 Amazon Q 是 Amazon 的 Claude 替身网关,走 AWS Bedrock 的简化接口,
+        响应里<strong>不返回 thinking signature</strong>(签名生成需要 Anthropic 的私钥,
+        Bedrock 端不实现该路径)。零一智鉴在 thinking_signature detector 上判 0 分,
+        该项 25% 历史权重归零,再与其他检测项一起进入加权计分。
+        它是高风险证据,但不是单项否决规则。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>零一智鉴会记录我的 API key 吗?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        <strong>不会</strong>。你输入的 API key 只在检测的几十秒里被我们的程序短暂使用,
+        检测一结束立刻从内存里清掉 — 不会写到任何文件、日志、数据库,零一智鉴服务器上
+        永远<strong>找不到你的 key</strong>。报告页面里看到的也是打码版(像 sk-y7xU••••••0h)。
+        我们代码<a href="https://github.com/XiaoSiKe/zero-one-api-verifier">完全公开在 GitHub</a>,
+        担心的话可以自己审计或者下载到自己电脑跑。
+      </p>
+      <p data-mode="developer">
+        不会。API key 只存在 <code>asyncio.Job</code> 对象里,job 跑完(成功 / 失败 / 超时)
+        立即从内存释放,不写 report JSON、不写 access log、不持久化。报告里 key 经
+        <code>mask_api_key()</code> 脱敏(保留前 4 位 + 后 4 位)。完整代码以 AGPL-3.0-or-later 许可开源于
+        <a href="https://github.com/XiaoSiKe/zero-one-api-verifier">XiaoSiKe/zero-one-api-verifier</a>,
+        可自托管 — Docker 部署 5 分钟即可。
+      </p>
+    </div>
+  </details>
+
+  <p class="faq-more">
+    更多 Claude 中转站问题 → <a href="/faq#claude">/faq#claude</a>
+    · 真伪识别 → <a href="/faq#authenticity">/faq#authenticity</a>
+    · 全部 <a href="/faq">常见问题</a>
+  </p>
+</section>
+
+{# app.js loaded globally by base.html #}
+{% endblock %}
