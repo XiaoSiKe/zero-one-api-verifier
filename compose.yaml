@@ -1,0 +1,29 @@
+# Docker Compose 项目名：zero-one-api-verifier-preview
+# `docker compose ls` 与默认容器/网络/卷名称都会使用这个前缀。
+name: zero-one-api-verifier-preview
+
+services:
+  web:
+    build:
+      context: .
+    ports:
+      - "${LOCAL_PREVIEW_PORT:-5173}:5173"
+    environment:
+      VERIDROP_JOBS_DIR: /app/zero-one-api-verifier/web_data/jobs
+      VERIDROP_WISHLIST_PATH: /app/zero-one-api-verifier/web_data/wishlist.txt
+    volumes:
+      - verifier-web-data:/app/zero-one-api-verifier/web_data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:5173/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  verifier-web-data:

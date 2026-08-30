@@ -1,0 +1,10 @@
+node_modules
+dist
+.impeccable
+**/.git
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+zero-one-api-verifier/web_data/jobs
+zero-one-api-verifier/sso-connect/node_modules
