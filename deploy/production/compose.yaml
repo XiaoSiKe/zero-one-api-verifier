@@ -1,0 +1,63 @@
+name: zero-one-verifier
+
+services:
+  verifier:
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+      target: verifier
+      args:
+        INSTALL_CJK_FONTS: ${INSTALL_CJK_FONTS:-1}
+    image: zero-one-verifier-backend:${VERIFIER_REVISION:?Set VERIFIER_REVISION to the exact source commit}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      VERIDROP_WEB_DATA_DIR: /data
+    volumes:
+      - ${VERIFIER_DATA_DIR:?Set VERIFIER_DATA_DIR to an isolated absolute directory}:/data
+    expose:
+      - "8012"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8012/healthz', timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+      target: web
+    image: zero-one-verifier-web:${VERIFIER_REVISION:?Set VERIFIER_REVISION to the exact source commit}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      verifier:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${VERIFIER_LOCAL_PORT:-8180}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-T", "5", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 20s
+      timeout: 7s
+      retries: 3
+      start_period: 20s
+    logging:
+      options:
+        max-size: 20m
+        max-file: "5"

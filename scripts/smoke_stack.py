@@ -7,6 +7,7 @@ non-loopback targets so it cannot be used against production by accident.
 from __future__ import annotations
 
 import argparse
+import http.client
 import http.cookiejar
 import json
 import urllib.error
@@ -18,6 +19,7 @@ import uuid
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", default="http://127.0.0.1:5175")
+    parser.add_argument("--public-host", help="also check HTTPS proxy headers")
     args = parser.parse_args()
     base = args.base_url.rstrip("/")
     parsed = urllib.parse.urlsplit(base)
@@ -81,6 +83,37 @@ def main() -> None:
         assert error.code == 400
     else:
         raise AssertionError("public verifier accepted a private HTTP target")
+
+    if args.public_host:
+        marker = uuid.uuid4().hex[:12]
+        connection = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=15)
+        try:
+            connection.request(
+                "POST",
+                "/partner/register",
+                body=urllib.parse.urlencode({
+                    "name": f"proxy-{marker}",
+                    "password": "stack-smoke-password-123",
+                    "site_name": "代理验收站",
+                    "domain": f"proxy-{marker}.example",
+                    "description": "HTTPS代理验收",
+                    "contact_method": "qq",
+                    "contact_handle": "12345678",
+                }),
+                headers={
+                    "Host": args.public_host,
+                    "Origin": f"https://{args.public_host}",
+                    "X-Forwarded-Proto": "https",
+                    "Cf-Connecting-Ip": "203.0.113.10",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+            response = connection.getresponse()
+            response.read()
+            assert response.status == 303
+            assert "secure" in (response.getheader("Set-Cookie") or "").lower()
+        finally:
+            connection.close()
     print(f"stack smoke passed: routes, session, site submission, visit ({site})")
 
 

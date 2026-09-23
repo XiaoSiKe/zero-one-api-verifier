@@ -28,6 +28,20 @@ REGISTRATION = {
 
 
 @pytest.mark.asyncio
+async def test_registration_accepts_same_origin_when_proxy_proto_is_blank(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(partner, "DB_PATH", tmp_path / "partners.sqlite3")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=server.app), base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/partner/register", data=REGISTRATION,
+            headers={"origin": "http://testserver", "x-forwarded-proto": ""},
+            follow_redirects=False,
+        )
+    assert response.status_code == 303
+
+
+@pytest.mark.asyncio
 async def test_register_login_and_pending_site_submission(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(partner, "DB_PATH", tmp_path / "partners.sqlite3")
     ratelimit.reset()

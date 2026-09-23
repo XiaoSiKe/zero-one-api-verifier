@@ -51,18 +51,9 @@ docker compose --profile demo up seed
 DOCKER_BUILDKIT=0 docker compose up --build -d
 ```
 
-## 反向代理
+## 网络入口
 
-以 Caddy 为例，应用服务如果在本机 `5173` 端口监听：
-
-```caddyfile
-mix.01yapi.cc {
-    encode zstd gzip
-    reverse_proxy 127.0.0.1:5173
-}
-```
-
-如果反向代理与应用处于不同容器，应使用 Compose 网络中的服务名，不要将应用端口额外暴露到公网。
+本地预览的 Vite 会把检测路径转发给 FastAPI；公网不得直接指向其 `5173` 开发端口。独立生产栈使用下文的静态 Web 容器和本机 `8180` 端口，再经 Cloudflare Tunnel 接入域名，不改动已有中转站的 80/443 Edge。
 
 ## 环境和数据
 
@@ -94,6 +85,28 @@ mix.01yapi.cc {
 - 保留上一个可用镜像的 tag 或 digest。
 - 回滚应用镜像时不要删除报告数据卷。
 - 域名、Canonical 和分享图链接应作为一个整体回滚，避免搜索和社交预览出现混合域名。
+
+## 独立生产部署（与零一中转站隔离）
+
+`deploy/production/` 是智鉴站的生产栈。它与现有零一中转站使用不同的 Compose project、容器网络、镜像和数据目录；不连接中转站的 PostgreSQL、Redis 或 `state/`，也不绑定服务器的 80/443。官网由静态 Caddy 容器提供，FastAPI 后端只在该栈的内部网络可见。唯一宿主入口默认是 `127.0.0.1:8180`。
+
+生产机使用独立目录 `/srv/zero-one-verifier`，源码放在其中的 `source/`，持久化数据放在 `state/`。创建数据目录时将其交给容器用户 UID/GID `10001`，权限设为 `0700`。部署命令须在 `source/` 执行，并提供当前完整 Git SHA：
+
+```bash
+export VERIFIER_REVISION="$(git rev-parse HEAD)"
+export VERIFIER_DATA_DIR=/srv/zero-one-verifier/state
+docker compose -f deploy/production/compose.yaml config --quiet
+docker compose -f deploy/production/compose.yaml up -d --build --wait
+curl --fail http://127.0.0.1:8180/healthz
+```
+
+构建和运行版本都用该 SHA 标识。首次发布前先在隔离目录运行完整的 HTTP、SQLite 和报告恢复验收；线上目录不运行预览种子，也不运行会写入测试账号的 `scripts/smoke_stack.py`。后续回滚仅切换智鉴站的固定镜像版本，保留 `state/`，不执行 `down -v`。
+
+独立备份命令为 `sudo python3 deploy/production/backup.py --data-dir /srv/zero-one-verifier/state --backup-root /srv/zero-one-verifier/backups`。脚本在线快照两个 SQLite 库、复制报告和横幅，并核对数据库完整性；`zero-one-verifier-backup.service` 与 `.timer` 可安排每日执行。备份目录仍在同一台服务器上，正式抗主机故障还需将备份加密复制到另一处存储。
+
+现有中转站已经占用 80/443。若要求完全不改其 Edge，可以为智鉴站单独创建 **Cloudflare Tunnel**，把 Cloudflare 上的公开主机名 `mix.01yapi.cc` 路由到同机 `http://127.0.0.1:8180`。`compose.tunnel.yaml` 只启动独立的 `cloudflared`，使用放在 Git 之外的 token 文件和固定 digest 镜像；不修改中转站的容器或防火墙入站规则。官方镜像以 UID/GID `65532` 运行，因此 token 文件须由该 UID 持有、权限设为 `0400`，其宿主目录由 root 持有、权限设为 `0700`。取得 token 后，将它安全写入 `VERIFIER_TUNNEL_TOKEN_FILE` 指向的服务器文件，运行 `docker compose -f deploy/production/compose.yaml -f deploy/production/compose.tunnel.yaml up -d tunnel`。Cloudflare [官方路由说明](https://developers.cloudflare.com/tunnel/concepts/routing/)指出，添加公开主机名时会在当前权威 DNS 中创建指向 Tunnel 的记录。
+
+截至 2026-09-23，`01yapi.cc` 的权威名称服务器是 Cloudflare；从生产机查询 `mix.01yapi.cc` 得到 NXDOMAIN。Spaceship 页面显示为“非活动”的记录不能作为已生效解析使用。Cloudflare 区域内还存在 `api.01yapi.cc` 的记录，**不要为修复智鉴站而切换整个域名的名称服务器**；应在当前权威 Cloudflare 区域创建本项目的独立 Tunnel 路由，并在公网确认 DNS、TLS、`/healthz`、检测页面和报告链路后才宣布上线。
 
 ## 数据备份与恢复
 
