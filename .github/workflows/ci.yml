@@ -114,7 +114,7 @@ jobs:
     timeout-minutes: 25
     env:
       VERIFIER_REVISION: ${{ github.sha }}
-      VERIFIER_DATA_DIR: ${{ runner.temp }}/zero-one-verifier-state
+      VERIFIER_DATA_DIR: /tmp/zero-one-verifier-state-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
       - name: Prepare isolated data directory
