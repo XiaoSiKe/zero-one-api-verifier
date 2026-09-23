@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -29,16 +29,82 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Validate preview Compose configuration
+        run: docker compose config --quiet
+
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: zero-one-api-verifier/pyproject.toml
 
       - name: Install verifier dependencies
         run: python -m pip install -e "./zero-one-api-verifier[dev,web]"
 
+      - name: Check Python syntax and undefined names
+        working-directory: zero-one-api-verifier
+        run: ruff check --select E4,E7,E9,F63,F7,F82 src web tests
+
       - name: Run verifier tests
         working-directory: zero-one-api-verifier
         run: pytest
+
+  sso-connect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: zero-one-api-verifier/sso-connect
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: zero-one-api-verifier/sso-connect/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start fresh stack without demo data
+        run: docker compose -p "zeroone-ci-${GITHUB_RUN_ID}" up -d --build --wait --wait-timeout 180
+      - name: Exercise public routes and database writes
+        run: python3 scripts/smoke_stack.py
+      - name: Check both SQLite stores
+        run: |
+          docker compose -p "zeroone-ci-${GITHUB_RUN_ID}" exec -T verifier \
+            /app/zero-one-api-verifier/.venv/bin/python - <<'PY'
+          import os
+          import sqlite3
+          from pathlib import Path
+          root = Path(os.environ['VERIDROP_WEB_DATA_DIR'])
+          assert not (root / 'preview_seed.json').exists()
+          assert not list((root / 'jobs').glob('*/*.json'))
+          for filename, table in [('partners.sqlite3', 'site_submissions'), ('visits.sqlite3', 'pageviews')]:
+              with sqlite3.connect(root / filename) as db:
+                  assert db.execute('PRAGMA integrity_check').fetchone() == ('ok',)
+                  assert db.execute('PRAGMA foreign_key_check').fetchall() == []
+                  assert db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] > 0
+          PY
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose -p "zeroone-ci-${GITHUB_RUN_ID}" logs --tail 100
+      - name: Remove only this CI stack and volume
+        if: always()
+        run: docker compose -p "zeroone-ci-${GITHUB_RUN_ID}" down -v

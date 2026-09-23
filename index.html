@@ -4,6 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      (() => {
+        let theme;
+        try {
+          const saved = localStorage.getItem('zeroone_theme');
+          if (saved === 'light' || saved === 'dark') theme = saved;
+        } catch { /* System preference remains available without storage. */ }
+        theme ||= window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#090909' : '#f6f6f3';
+      })();
+    </script>
     <meta
       name="description"
       content="零一智鉴 · API 真测雷达——从零到一，让每一个接口有据可鉴！"

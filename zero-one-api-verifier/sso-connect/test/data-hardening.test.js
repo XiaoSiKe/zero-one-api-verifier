@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   chmod,
+  copyFile,
   mkdtemp,
   readFile,
   rm,
@@ -12,6 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
+import { backup } from 'node:sqlite';
 
 import {
   DatabaseSync,
@@ -454,6 +456,44 @@ test('同一数据目录重启后 JWK、pairwise sub、Client 与邀请统计保
   assert.equal(runtime.repository.integrationSecret(restoredIntegration), client.clientSecret);
   assert.deepEqual(runtime.repository.inviteSummary(owner.id), before.invite);
   assert.equal(restoredVisit.id, before.visitId);
+});
+
+test('在线备份平台库与签名密钥后可恢复会话和加密商家凭据', async (t) => {
+  const liveDirectory = await temporaryDirectory(t, 'zeroone-live-backup-');
+  const restoredDirectory = await temporaryDirectory(t, 'zeroone-restored-backup-');
+  const options = {
+    issuer: 'http://127.0.0.1:8940',
+    platformPort: 8940,
+    demoMode: false,
+  };
+  const live = await createRuntime({ ...options, dataDir: liveDirectory });
+  const owner = live.repository.ensureDemoUser();
+  const session = live.repository.createSession(owner.id);
+  const originalKid = live.secrets.jwks.keys[0].kid;
+  live.repository.saveIntegration({
+    id: 'backup-integration',
+    ownerUserId: owner.id,
+    siteUrl: 'https://backup.example',
+    origin: 'https://backup.example',
+    kind: 'custom',
+    clientId: 'backup-client',
+    clientSecret: 'backup-secret-value',
+    redirectUri: 'https://backup.example/oauth/oidc',
+    status: 'pending',
+  });
+
+  await backup(live.database, path.join(restoredDirectory, 'zeroone-sso.sqlite3'));
+  await copyFile(live.config.secretsPath, path.join(restoredDirectory, 'secrets.json'));
+  await live.close();
+
+  const restored = await createRuntime({ ...options, dataDir: restoredDirectory });
+  t.after(() => restored.close());
+  assert.equal(restored.database.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
+  assert.deepEqual(restored.database.prepare('PRAGMA foreign_key_check').all(), []);
+  assert.equal(restored.secrets.jwks.keys[0].kid, originalKid);
+  assert.equal(restored.repository.getSessionUser(session).id, owner.id);
+  const integration = restored.repository.getIntegration('backup-integration');
+  assert.equal(restored.repository.integrationSecret(integration), 'backup-secret-value');
 });
 
 test('数据目录、Secrets、平台库与 Demo 商家库及 WAL/SHM 均使用最小权限', async (t) => {

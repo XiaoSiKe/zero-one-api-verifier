@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <script>
+    (() => {
+      let theme;
+      try { theme = localStorage.getItem('zeroone_theme'); } catch { /* Ignore unavailable storage. */ }
+      if (theme !== 'light' && theme !== 'dark') theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+    })();
+  </script>
+  <title>{% block title %}{% if operator.role == 'admin' %}零一运维后台{% else %}站长中心{% endif %} | 零一智鉴{% endblock %}</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="icon" href="/static/zero-one-logo.png" type="image/png" />
+  <link rel="stylesheet" href="/static/style.css?v=20260921-1" />
+</head>
+<body class="partner-workspace{% block body_class %}{% endblock %}">
+  {% block workspace_background %}<div class="threads-background" data-threads aria-hidden="true"></div>{% endblock %}
+  <a class="skip-link" href="#partner-main">跳到主要内容</a>
+  <header class="site-header partner-topbar">
+    <div class="site-header-inner">
+      <a class="brand partner-topbar-brand" href="{% if operator.role == 'admin' %}/partner/admin{% else %}/partner/sites{% endif %}" aria-label="{% if operator.role == 'admin' %}零一运维后台，站点管理{% else %}零一站长中心，我的站点{% endif %}"><span class="brand-mark" aria-hidden="true"><img src="/static/lingyi-logo.jpg" alt="" width="30" height="30" /></span><span>{% if operator.role == 'admin' %}零一运维后台{% else %}零一站长中心{% endif %}</span></a>
+      <button class="nav-toggle" type="button" aria-label="打开菜单" aria-expanded="false" aria-controls="site-nav"><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span><span class="nav-toggle-bar"></span></button>
+      <nav class="site-nav" id="site-nav" aria-label="{% if operator.role == 'admin' %}运维后台导航{% else %}站长中心导航{% endif %}">
+        {% if operator.role == 'admin' %}
+        <a href="/partner/admin?section=sites" {% if active == 'admin_sites' %}aria-current="page"{% endif %}>站点管理</a>
+        <a href="/partner/admin?section=ads" {% if active == 'admin_ads' %}aria-current="page"{% endif %}>广告管理</a>
+        <a href="/partner/admin?section=visits" {% if active == 'admin_visits' %}aria-current="page"{% endif %}>访客数据</a>
+        {% else %}
+        <a href="/partner/sites" {% if active == 'sites' %}aria-current="page"{% endif %}>我的站点</a>
+        <a href="/partner/subscription" {% if active == 'subscription' %}aria-current="page"{% endif %}>广告订阅</a>
+        <a href="/#contact">联系</a>
+        {% endif %}
+        <a href="/">首页</a>
+        <button class="theme-toggle" type="button" aria-label="切换为深色模式" aria-pressed="false" title="切换为深色模式">
+          <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.7 14.3A8.5 8.5 0 0 1 9.7 3.3 8.5 8.5 0 1 0 20.7 14.3Z"></path></svg>
+          <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>
+          <span class="theme-toggle-label">外观</span>
+        </button>
+      </nav>
+      <details class="partner-account-menu"><summary aria-label="账户：{{ operator.name }}" title="{{ operator.name }}"><span class="partner-avatar" aria-hidden="true">{{ operator.name[:1] }}</span></summary><div><a href="/partner/account">账号设置</a><form method="post" action="/partner/logout"><button type="submit">退出登录</button></form></div></details>
+    </div>
+  </header>
+  <main class="partner-main{% block main_class %}{% endblock %}" id="partner-main">
+    <header class="partner-workspace-header"><div><h1 class="home-flow-title partner-page-title">{% block page_heading %}零一站长中心{% endblock %}</h1><p>{% block page_subtitle %}{% endblock %}</p></div><div class="partner-workspace-actions">{% block header_actions %}{% endblock %}</div></header>
+    {% block workspace_content %}{% endblock %}
+  </main>
+  <script>
+    (() => {
+      const profile = document.querySelector('.partner-account-menu');
+      const navToggle = document.querySelector('.partner-topbar .nav-toggle');
+      navToggle.addEventListener('click', () => { profile.open = false; });
+      document.addEventListener('click', (event) => {
+        if (!profile.contains(event.target)) profile.open = false;
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') profile.open = false;
+      });
+    })();
+  </script>
+  <script src="/static/home-specular.js" defer></script>
+  <script src="/static/app.js?v=20260921-1" defer></script>
+</body>
+</html>

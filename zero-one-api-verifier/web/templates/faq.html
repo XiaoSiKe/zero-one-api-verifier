@@ -13,15 +13,12 @@
 </script>
 {% endblock %}
 
+{% block main_class %} top-spaced-page{% endblock %}
+
 {% block content %}
 
 <section class="faq-hero">
-  <h1>常见问题</h1>
-  <p class="faq-hero-sub">
-    零一智鉴 · API 真测雷达通过 Claude thinking signature 透传形态 + 协议字段
-    + 用量指纹,评估中转站的透传与包装层风险。本页汇总 <strong>{{ total_count }} 个</strong>
-    关于中转站、风险证据、工具使用、数据安全的常见问题。
-  </p>
+  <h1 class="home-flow-title">常见问题</h1>
 </section>
 
 <div class="faq-layout">
@@ -58,15 +55,6 @@
     </section>
     {% endfor %}
 
-    <section class="faq-no-answer">
-      <h2>没找到答案?</h2>
-      <p>
-        欢迎在
-        <a href="https://github.com/XiaoSiKe/zero-one-api-verifier" target="_blank" rel="noopener">GitHub</a>
-        提 issue,或者直接<a href="/claude">跑一次检测</a>看实际结果 — 零一智鉴
-        的报告 details 里包含具体的扣分原因,通常自带答案。
-      </p>
-    </section>
   </div>
 </div>
 
@@ -90,3 +78,5 @@
 })();
 </script>
 {% endblock %}
+
+{% block footer %}{% endblock %}

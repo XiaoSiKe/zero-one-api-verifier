@@ -43,13 +43,26 @@
 
 ### Docker Compose（推荐用于本地预览）
 
-Docker Compose 项目名固定为 `zero-one-api-verifier-preview`。
+Docker Compose 项目名为 `zeroone-zhijian-current`，与同机上的旧版预览隔离。
+它一次启动两个服务，浏览器只需要打开一个入口就能预览全部页面：
+
+| 服务 | 端口 | 内容 |
+| --- | --- | --- |
+| `web` | <http://127.0.0.1:5175> | 营销站，并把 `/leaderboard`、`/partner`、`/api` 等路径反代到 `verifier` |
+| `verifier` | <http://127.0.0.1:8123> | FastAPI 服务：检测页、红黑榜、站点详情、站长中心、管理后台 |
 
 ```bash
 docker compose up --build -d
 ```
 
-打开 [http://127.0.0.1:5173](http://127.0.0.1:5173)。
+打开 [http://127.0.0.1:5175](http://127.0.0.1:5175)。
+
+可选的演示数据（站点、广告位、半年检测报告与访客记录），只写进数据卷、默认不运行：
+
+```bash
+docker compose --profile demo up seed
+# 输出管理员 preview-admin / preview-admin-2026，站长 站长01 / preview-operator-2026
+```
 
 ```bash
 # 查看状态
@@ -57,16 +70,21 @@ docker compose ps
 
 # 查看日志
 docker compose logs -f web
+docker compose logs -f verifier
 
 # 停止（不删除数据卷）
 docker compose down
 ```
 
-如果 5173 端口已被占用：
+如果端口已被占用：
 
 ```bash
-LOCAL_PREVIEW_PORT=4173 docker compose up --build -d
+LOCAL_PREVIEW_PORT=4173 VERIFIER_PREVIEW_PORT=8223 docker compose up --build -d
 ```
+
+> 若 `docker compose up --build` 报 `failed to dial gRPC ... x-docker-expose-session-sharedkey`
+> （本机 Compose bake 与 Docker Desktop 守护进程不兼容），改用经典构建器：
+> `DOCKER_BUILDKIT=0 docker compose up --build -d`。
 
 ### 直接本地运行
 
@@ -84,6 +102,8 @@ npm run dev -- --host 127.0.0.1
 - Vite：`http://127.0.0.1:5173`
 - FastAPI：`http://127.0.0.1:8012`
 - Vite 将 `/app`、`/claude`、`/openai`、`/gemini`、`/leaderboard`、`/faq`、`/api`、`/r` 等路径代理到 FastAPI。
+- `/partner/register`、`/partner/login`、`/partner/sites` 同样由 FastAPI 提供；不注册也可打开 `/app` 和三个协议检测页。
+- 如果本机已经占用 5173，可使用 `npm run dev -- --host 127.0.0.1 --port 5174 --strictPort`，然后打开 `http://127.0.0.1:5174/`。
 
 ## 常用路由
 
@@ -97,6 +117,20 @@ npm run dev -- --host 127.0.0.1
 | `/leaderboard` | 中转站红黑榜 |
 | `/faq` | 常见问题 |
 | `/healthz` | 健康检查 |
+| `/api/ad-slots` | 公开已分配广告位的展示名称、域名、HTTPS 跳转链接与横幅地址 |
+| `/api/ad-banners/{filename}` | 仅提供正在展示且站点已收录的 WebP 横幅 |
+| `POST /api/visit` | 首页匿名访问计数（不影响公开页面使用） |
+| `/partner/register` | 站长注册（用户名与密码，无邮箱） |
+| `/partner/login` | 站长登录 |
+| `/partner/sites` | 我的站点：站点资料、审核进度与广告数据 |
+| `/partner/sites/new` | 提交站点收录申请 |
+| `/partner/pricing`、`/partner/subscription` | 合作方式与广告订阅（暂不提供在线购买） |
+| `/partner/featured`、`/partner/ads` | 展示合作说明与广告统计入口（无真实投放时不伪造数据） |
+| `/partner/account` | 账号信息与密码修改 |
+| `/partner/admin?section=sites` | 运维后台：已收录/待审核站点信息与审核（需管理员账号） |
+| `/partner/admin/sites/new` | 管理员添加站点，指定归属账号并直接收录 |
+| `/partner/admin?section=ads` | 广告位价格、站点绑定、双横幅与投放时长 |
+| `/partner/admin?section=visits` | 匿名访问趋势、站长申请与收录概览 |
 
 ## 测试
 
@@ -107,7 +141,15 @@ npm run build
 # Python 完整回归测试
 cd zero-one-api-verifier
 .venv/bin/pytest
+
+# 独立 SSO 模块（Node 24）
+cd sso-connect
+npm test
+npm run test:e2e
 ```
+
+完整本地容器验收使用独立 Compose 项目与全新数据卷启动，且不运行 `demo` profile，然后从仓库根目录运行 `python3 scripts/smoke_stack.py`。该脚本会写入测试账号，只接受本机地址。备份和隔离恢复要求见 [部署文档](docs/DEPLOYMENT.md)。
+Python 测试会强制把报告、站长库、访问库和心愿单重定向到单次运行的临时目录，不读取本地预览卷或生产数据。
 
 页面级改动至少需要验证 `/`、`/app`、三个协议表单、`/leaderboard` 和 `/faq`，并检查移动导航、键盘焦点、减少动态效果与浏览器控制台。
 

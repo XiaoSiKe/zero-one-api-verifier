@@ -62,3 +62,9 @@ npm run test:e2e
 ```
 
 自动化覆盖 Discovery、JWKS、PKCE、New API/One API兼容、授权码防重放、pairwise `sub`、signed handoff、邀请去重和 390px 窄屏。
+
+## 备份与恢复
+
+平台 SQLite 数据库与同目录的 `secrets.json` 必须成对备份。`secrets.json` 保存签名私钥和数据库加密密钥；只恢复数据库会使已加密的商家凭据无法解密，并改变已有 Token 的签名身份。Demo 模式还需备份 `demo-merchant.sqlite3`；正式环境禁止启用 Demo 模式。
+
+在线备份 SQLite 应使用 Node `node:sqlite` 的 `backup()` 或 SQLite `.backup`，不能只复制 WAL 模式下的主数据库文件。将备份恢复到隔离数据目录后，先检查 `PRAGMA integrity_check`、`PRAGMA foreign_key_check`，再验证旧会话、OIDC Client、签名密钥和加密凭据。自动化测试中的在线备份恢复流程使用临时目录，不读取本机或生产数据。

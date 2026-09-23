@@ -1,0 +1,10 @@
+{% extends "partner_shell.html" %}
+{% block title %}账号 | {% if operator.role == 'admin' %}零一运维后台{% else %}零一智鉴站长中心{% endif %}{% endblock %}
+{% block page_heading %}账号{% endblock %}
+{% block page_subtitle %}管理登录账号与安全设置。{% endblock %}
+{% block workspace_content %}
+<div class="partner-account-grid">
+  <section class="partner-workspace-card"><h2>账号信息</h2><dl class="partner-account-details"><div><dt>用户名</dt><dd>{{ operator.name }}</dd></div><div><dt>账号权限</dt><dd>{% if operator.role == 'admin' %}管理员{% else %}站长{% endif %}</dd></div></dl></section>
+  <section class="partner-workspace-card"><h2>修改密码</h2><p class="partner-card-subtitle">更新密码后，所有设备会退出登录。</p>{% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}<form method="post" action="/partner/account/password" class="partner-form partner-form-stack"><div class="partner-field"><label for="current-password">当前密码</label><input id="current-password" name="current_password" type="password" required autocomplete="current-password" /></div><div class="partner-field"><label for="new-password">新密码</label><input id="new-password" name="new_password" type="password" required minlength="10" maxlength="128" autocomplete="new-password" /><small>至少 10 个字符。</small></div><button class="partner-primary" type="submit">更新密码</button></form></section>
+</div>
+{% endblock %}

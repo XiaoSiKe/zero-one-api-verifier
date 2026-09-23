@@ -21,27 +21,16 @@
   <meta name="twitter:image" content="https://mix.01yapi.cc/r/{{ job_id }}.jpg" />
 {% endblock %}
 
-{% block content %}
-{# Breadcrumb: 首页 › 红黑榜 › {domain} › {target_model}.
-   When the report's base_url didn't yield a valid domain (legacy reports,
-   garbled URLs), drop the {domain} crumb and link straight to /leaderboard.
-   The trailing crumb shows the detected model so each report is uniquely
-   identifiable in nav and crawler-readable for long-tail SEO; falls back
-   to "报告 #{job_id}" when target_model is missing. #}
-<nav class="breadcrumb" aria-label="面包屑">
-  <a href="/">首页</a>
-  <span class="breadcrumb-sep">›</span>
-  <a href="/leaderboard">红黑榜</a>
-  {% if breadcrumb_domain %}
-    <span class="breadcrumb-sep">›</span>
-    <a href="/leaderboard/{{ breadcrumb_domain }}">{{ breadcrumb_domain }}</a>
-  {% endif %}
-  <span class="breadcrumb-sep">›</span>
-  <span class="breadcrumb-current">{% if report.target_model %}{{ report.target_model }}{% else %}报告 #{{ job_id }}{% endif %}</span>
-</nav>
+{% block head_extra %}<script src="/static/home-specular.js" defer></script>{% endblock %}
+{% block main_class %} report-page{% endblock %}
 
+{% block content %}
 {% set perf = report.performance or {} %}
-{% set usage = perf.usage or {} %}
+{% set usage = (perf.usage if perf.usage is defined else {}) or {} %}
+{% set ttft_ms = perf.ttft_ms if perf.ttft_ms is defined else none %}
+{% set total_latency_ms = (perf.total_latency_ms if perf.total_latency_ms is defined else 0) or 0 %}
+{% set input_tokens = (usage.input_tokens if usage.input_tokens is defined else 0) or 0 %}
+{% set output_tokens = (usage.output_tokens if usage.output_tokens is defined else 0) or 0 %}
 {% set score = report.total_score or 0 %}
 {% set verdict = report.verdict or 'failed' %}
 {% set protocol = report.protocol or 'anthropic' %}
@@ -74,10 +63,10 @@
     </p>
   </div>
   <div class="result-actions">
-    <a class="btn btn-ghost specular-button" href="/r/{{ job_id }}.jpg" download="zero-one-api-report-{{ job_id }}.jpg">
-      下载 JPG
+    <a class="result-download home-specular-button" data-home-specular href="/r/{{ job_id }}.jpg" download="zero-one-api-report-{{ job_id }}.jpg">
+      <span class="home-specular-fx" aria-hidden="true"></span>
+      <span class="home-specular-label">下载 JPG</span>
     </a>
-    <button class="btn btn-ghost specular-button" id="share-btn" type="button" aria-live="polite">分享</button>
   </div>
 </section>
 
@@ -103,7 +92,6 @@
         <div class="score-caption">{{ caption }}</div>
       </div>
     </div>
-    <p class="muted small attribution">由 https://mix.01yapi.cc 生成</p>
   </div>
 
   <div class="result-right">
@@ -129,48 +117,34 @@
   </div>
 </section>
 
-{% if report_notes %}
-<section class="card notes-card">
-  <h2>这份结果怎么理解?</h2>
-  {% for note in report_notes %}
-  <div class="note-item">
-    <strong>{{ note.title }}</strong>
-    <p>{{ note.body }}</p>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
 <section class="metrics-row metrics-row-5">
-  <div class="metric{% if perf.ttft_ms and perf.ttft_ms > 2000 %} metric-warn{% endif %}">
+  <div class="metric{% if ttft_ms and ttft_ms > 2000 %} metric-warn{% endif %}">
     <div class="metric-label">首 TOKEN</div>
     <div class="metric-value" title="Time to first token,从发出请求到收到第一个真实 token 的时间(取所有流式请求的最小值)">
-      {% if perf.ttft_ms is not none %}{{ '{:,}'.format(perf.ttft_ms) }}ms{% else %}—{% endif %}
+      {% if ttft_ms is not none %}{{ '{:,}'.format(ttft_ms) }}ms{% else %}—{% endif %}
     </div>
   </div>
-  <div class="metric{% if (perf.total_latency_ms or 0) > 30000 %} metric-warn{% endif %}">
+  <div class="metric{% if total_latency_ms > 30000 %} metric-warn{% endif %}">
     <div class="metric-label">总耗时</div>
     <div class="metric-value" title="整批检测的钟表时间(并行运行,等于最慢 detector 的耗时)">
-      {{ '{:,}'.format(perf.total_latency_ms or 0) }}ms
+      {{ '{:,}'.format(total_latency_ms) }}ms
     </div>
   </div>
   <div class="metric">
     <div class="metric-label">吞吐 (T/S)</div>
     <div class="metric-value">
-      {% set out_t = (usage.output_tokens or 0) %}
-      {% set lat = (perf.total_latency_ms or 0) %}
-      {% if out_t and lat %}
-        {{ '%.1f' | format(out_t * 1000.0 / lat) }}
+      {% if output_tokens and total_latency_ms %}
+        {{ '%.1f' | format(output_tokens * 1000.0 / total_latency_ms) }}
       {% else %}—{% endif %}
     </div>
   </div>
   <div class="metric">
     <div class="metric-label">输入 TOKENS</div>
-    <div class="metric-value">{{ '{:,}'.format(usage.input_tokens or 0) }}</div>
+    <div class="metric-value">{{ '{:,}'.format(input_tokens) }}</div>
   </div>
   <div class="metric">
     <div class="metric-label">输出 TOKENS</div>
-    <div class="metric-value">{{ '{:,}'.format(usage.output_tokens or 0) }}</div>
+    <div class="metric-value">{{ '{:,}'.format(output_tokens) }}</div>
   </div>
 </section>
 
@@ -181,87 +155,6 @@
 </section>
 {% endif %}
 
-<section class="card details-card">
-  <details>
-    {% if protocol == 'openai' %}
-    <summary>OpenAI 检测项各自检查什么?</summary>
-    <dl class="def-list">
-      <dt>基础请求 (Basic Request)</dt>
-      <dd>发送最小 Chat Completions 请求,确认接口可用且能提取 assistant 文本。</dd>
-      <dt>模型一致性 (Model Consistency)</dt>
-      <dd>验证 <code>response.model</code> 与请求模型匹配,并检查低温多次调用的输出 token 稳定性。</dd>
-      <dt>函数调用 (Function Calling)</dt>
-      <dd>强制 tool_choice,验证 <code>call_</code> ID、<code>type=function</code>、函数名和 arguments JSON。</dd>
-      <dt>结构化输出 (Structured Output)</dt>
-      <dd>使用 <code>response_format=json_schema</code>,检查返回内容能否按 schema 解析。</dd>
-      <dt>协议规范性 (Protocol)</dt>
-      <dd>被动检查 <code>chatcmpl-</code> ID、<code>chat.completion</code>、choices、finish_reason、usage 等官方字段。</dd>
-      <dt>流式一致性 (Integrity)</dt>
-      <dd>比较同一 prompt 的 stream 与 non-stream 文本、finish_reason 和 usage 是否一致。</dd>
-      <dt>Token 计费</dt>
-      <dd>检查中转站返回的输入/输出 Token 数是否自洽,并和同一次检测里的流式/非流式结果、本地可预期的变化进行对比。</dd>
-      <dt>长上下文真实性 (Long Context)</dt>
-      <dd>需在提交时勾选启用 — 用 needle-in-haystack 在 32k → 100k → 200k tokens 三档探针,验证中转站是否真兑现宣传的 context window(识别截断 / 路由到小窗口模型)。极限档可按模型完整上限自适应探到 950k+。</dd>
-    </dl>
-    {% elif protocol == 'gemini' %}
-    <summary>Gemini 检测项各自检查什么?</summary>
-    <dl class="def-list">
-      <dt>基础请求</dt>
-      <dd>通过 OpenAI-compatible <code>/chat/completions</code> 发送最小请求,确认接口可用且能提取 assistant 文本。</dd>
-      <dt>模型响应形状</dt>
-      <dd>检查 <code>model</code>、<code>id</code>、<code>choices</code>、<code>finish_reason</code> 等 Chat Completions 响应形状。</dd>
-      <dt>函数调用</dt>
-      <dd>要求返回 <code>tool_calls</code>,检查函数名、调用 ID 和 arguments JSON。</dd>
-      <dt>结构化输出</dt>
-      <dd>使用 OpenAI-compatible <code>response_format=json_schema</code>,检查返回内容能否按 schema 解析。</dd>
-      <dt>协议规范性</dt>
-      <dd>被动检查 <code>chat.completion</code>、choices、finish_reason、usage 等兼容协议字段。</dd>
-      <dt>流式一致性</dt>
-      <dd>比较同一 prompt 的流式与非流式 Chat Completions 文本、结束原因和用量字段是否一致。</dd>
-      <dt>Token 用量</dt>
-      <dd>检查 OpenAI-compatible <code>usage</code> 是否存在、Token 统计是否自洽,以及长短文本的 Token 增量是否合理。</dd>
-    </dl>
-    {% else %}
-    <summary>12 项检测各自检查什么?</summary>
-    <dl class="def-list">
-      <dt>身份一致性 (Identity)</dt>
-      <dd>询问模型自报身份,响应必须包含 "Claude" 与 "Anthropic",且不能自称是其他品牌(如 Kiro、AWS Q 等)。</dd>
-      <dt>行为签名验证 (Behavioral)</dt>
-      <dd>3 道行为指纹题(markdown 风格、列表偏好、拒绝语气),正版 Claude 有特征鲜明的回答模式。</dd>
-      <dt>思维签名透传形态 (Thinking) ⭐</dt>
-      <dd>检查 Claude thinking 块与 <code>signature</code> 字段的存在性和长度形态。当前不做独立密码学验签,结果只是多维风险证据之一。</dd>
-      <dt>模型一致性 (Consistency)</dt>
-      <dd>验证 <code>response.model</code> 与请求一致,且多次调用输出长度稳定(变异系数 CV)。</dd>
-      <dt>知识准确度 (Knowledge)</dt>
-      <dd>5 道关于 Anthropic 公司的常识题(CEO、HQ、Constitutional AI 等),错答多会增加身份不一致风险,但不单独定性模型来源。</dd>
-      <dt>PDF 文档识别</dt>
-      <dd>提交一份 base64 PDF + magic 字符串,检查模型能否正确提取——剥离 multimodal 的中转站会失败。</dd>
-      <dt>结构化输出 (Tool Use)</dt>
-      <dd>真实 tool_use 调用,验证 <code>toolu_</code> ID 前缀、JSON schema 匹配、stop_reason 等 5 项子项。</dd>
-      <dt>协议规范性 (Protocol)</dt>
-      <dd>SSE 事件序列、content block 类型必须符合 Anthropic 官方规范(被动检测,不发额外请求)。</dd>
-      <dt>响应完整性 (Integrity)</dt>
-      <dd>同一 prompt 流式与非流式调用必须返回一致的文本、<code>input_tokens</code>、<code>stop_reason</code>。</dd>
-      <dt>Token 用量</dt>
-      <dd>检查 Claude Messages 的 <code>usage.input_tokens/output_tokens</code> 是否存在、长短 prompt 增量是否合理、短输出是否没有超报,并用 stream 与 <code>count_tokens</code> 做交叉验证。</dd>
-      <dt>消息标识规范 (Message ID)</dt>
-      <dd>消息 <code>id</code> 必须以 <code>msg_</code> 开头、tool 块以 <code>toolu_</code> 开头。UUID 或硬编码 <code>tool_1</code> 是典型造假特征。</dd>
-      <dt>长上下文真实性 (Long Context)</dt>
-      <dd>需在提交时勾选启用 — 用 needle-in-haystack 在 32k → 100k → 200k tokens 三档探针,验证中转站是否真兑现宣传的 context window(识别截断 / 路由到小窗口模型)。Anthropic 路径用官方 <code>count_tokens</code> 端点精准预算 token,极限档可按模型完整上限自适应探到 950k+(Sonnet 4.6 / Opus 4.6/4.7 都是 1M)。</dd>
-    </dl>
-    {% endif %}
-  </details>
-</section>
-
-<script>
-document.getElementById('share-btn').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(location.href);
-    const btn = document.getElementById('share-btn');
-    const orig = btn.textContent;
-    btn.textContent = '已复制!';
-    setTimeout(() => btn.textContent = orig, 1500);
-  } catch (e) {}
-});
-</script>
 {% endblock %}
+
+{% block footer %}{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "partner_shell.html" %}
+{% block title %}{{ page_title }} | 零一智鉴站长中心{% endblock %}
+{% block page_heading %}{{ page_title }}{% endblock %}
+{% block page_subtitle %}{{ page_subtitle }}{% endblock %}
+{% block header_actions %}
+{% if active == 'subscription' %}
+<a class="partner-secondary home-specular-button" data-home-specular href="/#contact"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">联系申请展示</span></a>
+<a class="partner-secondary home-specular-button" data-home-specular href="/partner/sites#ad-data"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">查看广告数据</span></a>
+{% endif %}
+{% endblock %}
+{% block workspace_content %}
+{% if active == 'pricing' %}
+<section class="partner-workspace-card">
+  <h2>合作方式</h2>
+  <p class="partner-card-subtitle">站点收录、运营服务和展示合作分别申请。当前页面仅说明可申请的类型，不提供在线购买。</p>
+  <div class="partner-business-grid">
+    <article class="partner-business-card"><span>01 / 收录</span><h3>站点收录</h3><p>提交域名与基本资料，管理员审核后可在站长中心查看状态。</p><a class="partner-secondary" href="/partner/sites/new">提交收录</a></article>
+    <article class="partner-business-card"><span>02 / 运营</span><h3>站点合作</h3><p>需要更多资料展示或运营支持，可先联系零一智鉴沟通具体需求。</p><a class="partner-secondary" href="/#contact">联系与合作</a></article>
+    <article class="partner-business-card"><span>03 / 展示</span><h3>精选置顶</h3><p>广告位与公开检测榜单分别呈现，展示合作不改变检测评分与排名。</p><a class="partner-secondary" href="/partner/featured">查看展示合作</a></article>
+  </div>
+</section>
+{% elif active == 'subscription' %}
+<section class="partner-offers-section" aria-labelledby="partner-plans-title">
+  <h2 id="partner-plans-title">基础收录与专业玩家</h2>
+  <div class="partner-plan-grid">
+    <article class="partner-offer-card">
+      <div class="partner-offer-heading"><h3>基础收录</h3><strong class="partner-offer-price">¥49</strong></div>
+      <p>适合刚开始运营、只需要正式收录和资料维护的站点。</p>
+      <ul>
+        <li>域名永久基础收录资格</li>
+        <li>公开详情页和基础认证收录标识</li>
+        <li>资料维护、可填写官网、联系方式</li>
+      </ul>
+    </article>
+    <article class="partner-offer-card">
+      <div class="partner-offer-heading"><h3>专业玩家</h3><strong class="partner-offer-price">¥99</strong></div>
+      <p>适合需要用户增长、复盘流量转化的站长。</p>
+      <ul>
+        <li>域名永久基础收录资格</li>
+        <li>数据看板、点击明细</li>
+        <li>专业版是后台数据工具套餐。</li>
+      </ul>
+    </article>
+  </div>
+</section>
+<section class="partner-offers-section" aria-labelledby="partner-ad-slots-title">
+  <h2 id="partner-ad-slots-title">广告置顶与精选</h2>
+  <div class="partner-slot-group">
+    <div class="partner-slot-heading"><h3>赞助置顶榜</h3></div>
+    <div class="partner-slot-grid">
+      {% for slot in sponsor_slots %}
+      <article class="partner-slot-card">
+        <span class="partner-slot-code">{{ slot.code }}</span>
+        <h4>{{ slot.label }}</h4>
+        <strong class="partner-slot-price">{% if slot.price_yuan is none %}价格待定{% else %}¥{{ slot.price_yuan }}/月{% endif %}</strong>
+        <p>赞助区第 {{ loop.index }} 位</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="partner-slot-group">
+    <div class="partner-slot-heading"><h3>靠谱精选榜</h3></div>
+    <div class="partner-slot-grid">
+      {% for slot in selected_slots %}
+      <article class="partner-slot-card">
+        <span class="partner-slot-code partner-slot-code-t">{{ slot.code }}</span>
+        <h4>{{ slot.label }}</h4>
+        <strong class="partner-slot-price">{% if slot.price_yuan is none %}价格待定{% else %}¥{{ slot.price_yuan }}/月{% endif %}</strong>
+        <p>精选排名第 {{ loop.index }} 位</p>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% elif active == 'featured' %}
+<section class="partner-workspace-card"><h2>精选置顶申请</h2><p class="partner-card-subtitle">零一智鉴首页展示 S 赞助位与 T 精选位。广告展示与 API 真测评分、红黑榜自然排序相互独立。</p>
+  <div class="partner-featured-types"><div><span>S</span><h3>赞助置顶榜</h3><p>展示赞助站点的独立广告位。</p></div><div><span>T</span><h3>靠谱精选榜</h3><p>根据公开报告筛选展示，展示合作需另行沟通。</p></div></div>
+  <p class="partner-muted-note">在线展位申请与支付暂未开放。需要展示合作，请先联系零一智鉴。</p><a class="partner-primary" href="/#contact">联系与合作</a>
+</section>
+{% elif active == 'ads' %}
+<section class="partner-workspace-card"><h2>广告统计</h2><p class="partner-card-subtitle">展示与点击数据将在广告合作上线后显示。</p><div class="partner-metric-row"><div><strong>—</strong><span>展示量</span></div><div><strong>—</strong><span>点击量</span></div><div><strong>—</strong><span>到站量</span></div></div><p class="partner-muted-note">当前账号暂无可统计的广告投放。此处不展示虚构的零值或历史数据。</p><a class="partner-secondary" href="/partner/featured">了解精选置顶</a></section>
+{% endif %}
+{% endblock %}

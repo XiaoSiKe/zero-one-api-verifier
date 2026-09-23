@@ -121,6 +121,37 @@ async def test_submit_report_disk_recovery_and_leaderboard(
 
 
 @pytest.mark.asyncio
+async def test_preview_report_without_performance_metrics_still_renders(monkeypatch):
+    """Synthetic/legacy reports may omit performance, but share pages must work."""
+    report = {
+        "job_id": "preview-report",
+        "base_url": "https://preview.example/v1",
+        "protocol": "openai",
+        "target_model": "gpt-preview",
+        "mode": "full",
+        "total_score": 81,
+        "verdict": "passed",
+        "timestamp": "2026-09-20T00:00:00Z",
+        "results": [],
+    }
+    monkeypatch.setattr(jobs, "_JOBS", {
+        "preview-report": jobs.Job(
+            id="preview-report", status="done", report=report,
+        ),
+    })
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=server.app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/r/preview-report")
+
+    assert response.status_code == 200
+    assert "81%" in response.text
+    assert "—" in response.text
+
+
+@pytest.mark.asyncio
 async def test_queue_capacity_task_reference_and_completed_eviction(monkeypatch):
     monkeypatch.setattr(jobs, "_JOBS", {})
     monkeypatch.setattr(jobs, "_TASKS", set())

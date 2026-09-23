@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import re
@@ -10,10 +11,12 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import (
+    FileResponse,
     HTMLResponse,
     JSONResponse,
+    RedirectResponse,
     Response,
 )
 from fastapi.staticfiles import StaticFiles
@@ -22,7 +25,7 @@ from fastapi.templating import Jinja2Templates
 from relay_detector.models import Protocol
 from relay_detector.protocols.resolve import protocol_from_model
 
-from . import jobs, leaderboard
+from . import analytics, jobs, leaderboard, partner
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .image_report import render_report_jpg
 from .paths import WISHLIST_PATH, report_dirs
@@ -43,7 +46,18 @@ logger.setLevel(logging.INFO)
 
 app = FastAPI(title="ZeroOne · API Verification Platform", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
+
+
+def _partner_nav_context(request: Request) -> dict[str, bool | str]:
+    token = request.cookies.get(partner.SESSION_COOKIE)
+    operator = partner.operator_for_token(token) if token else None
+    return {
+        "partner_logged_in": bool(operator),
+        "partner_home": "/partner/admin" if operator and operator["role"] == "admin" else "/partner/sites",
+    }
+
+
+templates = Jinja2Templates(directory=str(TEMPLATE_DIR), context_processors=[_partner_nav_context])
 
 
 @app.middleware("http")
@@ -59,10 +73,46 @@ async def no_html_cache(request: Request, call_next):
     immediately while still serving 304s for unchanged pages.
     """
     response = await call_next(request)
+    if request.url.path.startswith("/partner/"):
+        response.headers["Cache-Control"] = "private, no-store"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "same-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        return response
     ctype = response.headers.get("content-type", "")
     if ctype.startswith("text/html"):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        page = analytics.page_label(request.url.path) if request.method == "GET" else None
+        if page and not _is_admin_visit(request) and not _is_bot_visit(request):
+            await _record_visit(request, response, page)
     return response
+
+
+def _is_admin_visit(request: Request) -> bool:
+    token = request.cookies.get(partner.SESSION_COOKIE)
+    operator = partner.operator_for_token(token) if token else None
+    return bool(operator and operator["role"] == "admin")
+
+
+def _is_bot_visit(request: Request) -> bool:
+    agent = request.headers.get("user-agent", "").lower()
+    return any(word in agent for word in ("bot", "crawler", "spider", "headless", "python-httpx", "curl", "wget"))
+
+
+async def _record_visit(request: Request, response: Response, page: str) -> None:
+    token, fresh = analytics.visitor_token(request.cookies.get(analytics.COOKIE_NAME))
+    try:
+        await asyncio.to_thread(analytics.record_visit, page, token)
+    except Exception:
+        logger.exception("visitor counter unavailable")
+        return
+    if fresh:
+        response.set_cookie(
+            analytics.COOKIE_NAME, token, max_age=analytics.COOKIE_MAX_AGE,
+            httponly=True, samesite="lax", path="/",
+            secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+        )
 
 
 _VALID_MODES = {"quick", "standard", "full"}
@@ -137,27 +187,68 @@ async def gemini_index(request: Request) -> HTMLResponse:
 
 _LEADERBOARD_TOP_N = 10
 _LEADERBOARD_PER_PAGE = 25
+_BOARD_CHOICES = {"featured", "certified", "all"}
+
+
+def _entry_domain(entry) -> str:
+    """Domain of a board entry — a RelayStats object or a catalog dict."""
+    return entry["domain"] if isinstance(entry, dict) else entry.domain
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
 async def leaderboard_page(
     request: Request,
     page: int = 1,
+    board: str = "featured",
 ) -> HTMLResponse:
     """中转站红黑榜 — 按域名聚合所有公开检测报告。
 
     SEO/GEO 杀手锏:任意「XX 中转站怎么样」搜索直接命中此页。
 
-    Layout:
-      - Top 10 (主榜):always visible, no pagination, sorted by Bayesian-
-        weighted ranking score so consistently-tested relays beat fluky-
-        single-pass ones.
-      - Rest (全部列表):paginated 25/page via ?page=N. Each page indexable
-        for SEO long-tail (`?page=2` etc.).
+    Board rules (owner: this route):
+      - 靠谱精选榜:只有占用 T1–T8 精选展示位的站点,按 T1→T8 排列。
+      - 认证综合榜:已收录认证且有公开检测报告的站点,按贝叶斯加权分排序。
+      - 全部站点合集:所有已收录站点(含尚无报告的目录站),
+        先按赞助位 S1–S8、再按精选位 T1–T8 排列,其余按评分排序。
     """
     all_relays, summary = leaderboard.aggregate()
-    top = all_relays[:_LEADERBOARD_TOP_N]
-    rest = all_relays[_LEADERBOARD_TOP_N:]
+    certified = partner.approved_domains()
+    approved_sites = partner.approved_public_sites()
+    report_domains = {relay.domain for relay in all_relays}
+    site_names = {site["domain"]: site["name"] for site in approved_sites}
+    catalog_only = [
+        dict(site, catalog_only=True) for site in approved_sites
+        if site["domain"] not in report_domains and leaderboard.is_public_domain(site["domain"])
+    ]
+    board = board if board in _BOARD_CHOICES else "featured"
+
+    slot_domains = partner.active_slot_domains()
+    slot_by_domain = {domain: code for code, domain in slot_domains.items()}
+    slot_order = {domain: index for index, domain in enumerate(slot_domains.values())}
+
+    if board == "featured":
+        # 精选榜只呈现当前 T1–T8 展示位上的站点,顺序即展示位顺序。
+        featured_domains = [
+            domain for code, domain in slot_domains.items() if code in partner.FEATURED_CODES
+        ]
+        by_domain = {relay.domain: relay for relay in all_relays}
+        by_domain.update({site["domain"]: site for site in catalog_only})
+        selected = [by_domain[domain] for domain in featured_domains if domain in by_domain]
+    elif board == "certified":
+        selected = [relay for relay in all_relays if relay.domain in certified]
+    else:
+        # 合集是审核通过后的公开目录，不让仅有检测报告、但尚未通过
+        # 收录审核的域名混入，保证每张卡片都对应真实的「已收录认证」。
+        selected = [relay for relay in all_relays if relay.domain in certified]
+        selected.extend(catalog_only)
+        # Stable sort keeps the Bayesian ranking inside each group: sponsored
+        # sites first (S1–S8), then featured picks (T1–T8), then the rest.
+        selected.sort(key=lambda item: (
+            (0, slot_order[_entry_domain(item)]) if _entry_domain(item) in slot_order else (1, 0)
+        ))
+
+    top = selected[:_LEADERBOARD_TOP_N] if board != "all" else []
+    rest = selected[_LEADERBOARD_TOP_N:] if board != "all" else selected
 
     total_rest = len(rest)
     total_pages = max(1, (total_rest + _LEADERBOARD_PER_PAGE - 1) // _LEADERBOARD_PER_PAGE)
@@ -171,15 +262,620 @@ async def leaderboard_page(
         {
             "top_relays": top,
             "rest_relays": rest_page_items,
-            "rest_start_rank": _LEADERBOARD_TOP_N + rest_start + 1,
+            "rest_start_rank": (0 if board == "all" else _LEADERBOARD_TOP_N) + rest_start + 1,
             "summary": summary,
             "page": page,
             "total_pages": total_pages,
             "has_rest": total_rest > 0,
+            "board": board,
+            "board_count": len(selected),
+            "certified_domains": certified,
+            "site_names": site_names,
+            "slot_by_domain": slot_by_domain,
+            "slot_labels": partner.AD_SLOT_LABELS,
+            "sponsor_slots": partner.public_ad_slots(),
             "protocol_labels": leaderboard.PROTOCOL_LABELS,
             "verdict_labels": leaderboard.VERDICT_LABELS,
         },
     )
+
+
+def _partner_form_is_same_origin(request: Request) -> bool:
+    """Reject cross-origin form posts, including requests without source headers."""
+    from urllib.parse import urlparse
+
+    source = request.headers.get("origin") or request.headers.get("referer", "")
+    if not source:
+        return False
+    parsed = urlparse(source)
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    return parsed.scheme == scheme and parsed.netloc == request.headers.get("host")
+
+
+def _partner_cookie(response: Response, request: Request, token: str, operator_id: int) -> None:
+    operator = partner.operator_for_id(operator_id)
+    max_age = partner.ADMIN_SESSION_SECONDS if operator and operator["role"] == "admin" else partner.SESSION_SECONDS
+    response.set_cookie(
+        partner.SESSION_COOKIE,
+        token,
+        max_age=max_age,
+        httponly=True,
+        secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+        samesite="strict",
+        path="/",
+    )
+
+
+@app.get("/partner/session")
+async def partner_session(request: Request) -> JSONResponse:
+    context = _partner_nav_context(request)
+    return JSONResponse({"authenticated": context["partner_logged_in"], "home": context["partner_home"]})
+
+
+@app.get("/api/ad-slots")
+async def public_ad_slots() -> JSONResponse:
+    response = JSONResponse({"slots": partner.public_ad_slots()})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/out/ad/{code}")
+async def public_ad_click(request: Request, code: str) -> Response:
+    target = partner.active_ad_target(code)
+    if target is None:
+        return RedirectResponse("/leaderboard", status_code=303)
+    response = RedirectResponse(target, status_code=303)
+    token, fresh = analytics.visitor_token(request.cookies.get(analytics.COOKIE_NAME))
+    if not _is_bot_visit(request):
+        try:
+            await asyncio.to_thread(partner.record_ad_click, code, token)
+        except Exception:
+            logger.exception("ad click counter unavailable")
+    if fresh:
+        response.set_cookie(
+            analytics.COOKIE_NAME, token, max_age=analytics.COOKIE_MAX_AGE,
+            httponly=True, samesite="lax", path="/",
+            secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+        )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.post("/api/visit", status_code=204)
+async def homepage_visit(request: Request) -> Response:
+    response = Response(status_code=204, headers={"Cache-Control": "no-store"})
+    if request.headers.get("sec-fetch-site", "same-origin") not in {"same-origin", "none"}:
+        return response
+    allowed, _ = check_rate("homepage-visit:" + _client_ip(request), limit=120, window_s=3600)
+    if allowed and not _is_admin_visit(request) and not _is_bot_visit(request):
+        await _record_visit(request, response, "首页")
+    return response
+
+
+@app.get("/api/ad-banners/{filename}")
+async def public_ad_banner(filename: str) -> Response:
+    path = partner.public_banner_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="广告图片不存在")
+    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "public, max-age=86400", "X-Content-Type-Options": "nosniff"})
+
+
+@app.get("/partner/admin/ad-banner/{filename}")
+async def admin_ad_banner(request: Request, filename: str) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    path = partner.admin_banner_path(filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="横幅不存在")
+    return FileResponse(path, media_type="image/webp")
+
+
+@app.get("/partner/register", response_class=HTMLResponse)
+async def partner_register_page(request: Request) -> HTMLResponse:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator:
+        return RedirectResponse("/partner/admin" if operator["role"] == "admin" else "/partner/sites", status_code=303)
+    return templates.TemplateResponse(request, "partner_register.html")
+
+
+@app.post("/partner/register", response_class=HTMLResponse)
+async def partner_register(
+    request: Request,
+    name: str = Form(...),
+    password: str = Form(...),
+    site_name: str = Form(...),
+    domain: str = Form(...),
+    description: str = Form(...),
+    contact_method: str = Form(""),
+    contact_handle: str = Form(""),
+) -> Response:
+    """站长注册与首次收录申请合并提交。
+
+    注册必须同时提供站点资料:账号与提交在同一个事务里落库,审核队列立刻
+    可以看到这条待审核申请,不需要站长注册后再单独提交一次。
+    """
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-register:" + _client_ip(request), limit=5, window_s=3600)
+    if not allowed:
+        return templates.TemplateResponse(request, "partner_register.html", {"error": "操作过于频繁，请稍后再试。"}, status_code=429)
+    try:
+        operator_id = await asyncio.to_thread(
+            partner.register_with_site, name, password, site_name, domain,
+            description, contact_method, contact_handle,
+        )
+    except partner.PartnerError as exc:
+        return templates.TemplateResponse(
+            request, "partner_register.html",
+            {"error": str(exc), "name": name, "site_name": site_name, "domain": domain,
+             "description": description, "contact_method": contact_method,
+             "contact_handle": contact_handle},
+            status_code=400,
+        )
+    response = RedirectResponse("/partner/sites?submitted=1", status_code=303)
+    _partner_cookie(response, request, partner.new_session(operator_id), operator_id)
+    return response
+
+
+@app.get("/partner/login", response_class=HTMLResponse)
+async def partner_login_page(request: Request) -> HTMLResponse:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator:
+        return RedirectResponse("/partner/admin" if operator["role"] == "admin" else "/partner/sites", status_code=303)
+    return templates.TemplateResponse(request, "partner_login.html", {"changed": request.query_params.get("changed") == "1"})
+
+
+@app.post("/partner/login", response_class=HTMLResponse)
+async def partner_login(request: Request, name: str = Form(...), password: str = Form(...)) -> Response:
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    login_name = name.strip()[:80]
+    account_key = hashlib.sha256(login_name.casefold().encode()).hexdigest()
+    ip_allowed, _ = check_rate("partner-login-ip:" + _client_ip(request), limit=10, window_s=900)
+    account_allowed, _ = check_rate("partner-login-account:" + account_key, limit=10, window_s=900)
+    if not ip_allowed or not account_allowed:
+        partner.record_event("login_throttled", actor_name=login_name, subject=login_name)
+        return templates.TemplateResponse(request, "partner_login.html", {"error": "尝试次数过多，请稍后再试。"}, status_code=429)
+    operator_id = await asyncio.to_thread(partner.authenticate, name, password)
+    if operator_id is None:
+        partner.record_event("login_failed", actor_name=login_name, subject=login_name)
+        return templates.TemplateResponse(
+            request, "partner_login.html", {"error": "用户名或密码不正确。", "name": name}, status_code=400,
+        )
+    operator = partner.operator_for_id(operator_id)
+    partner.record_event("login_success", actor_id=operator_id, actor_name=operator["name"], subject=operator["name"])
+    response = RedirectResponse("/partner/admin" if operator and operator["role"] == "admin" else "/partner/sites", status_code=303)
+    _partner_cookie(response, request, partner.new_session(operator_id), operator_id)
+    return response
+
+
+@app.post("/partner/logout")
+async def partner_logout(request: Request) -> Response:
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator:
+        partner.record_event("logout", actor_id=operator["id"], actor_name=operator["name"], subject=operator["name"])
+    partner.end_session(request.cookies.get(partner.SESSION_COOKIE))
+    response = RedirectResponse("/partner/login", status_code=303)
+    response.delete_cookie(partner.SESSION_COOKIE, path="/")
+    return response
+
+
+@app.get("/partner/sites", response_class=HTMLResponse)
+async def partner_sites_page(request: Request, submitted: int = 0) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    sites = partner.sites_for_operator(operator["id"])
+    for site in sites:
+        site["created_label"] = _day_label(site["created_at"])
+        site["approved_label"] = _day_label(site["approved_at"])
+    slots = partner.slots_for_operator(operator["id"])
+    for slot in slots:
+        slot["ends_label"] = _day_label(slot["ends_at"])
+        slot["remaining_days"] = _remaining_days(slot["ends_at"])
+    ad_data = partner.ad_dashboard(operator["id"])
+    ceiling = max((day["clicks"] for day in ad_data["days"]), default=0)
+    ad_data["click_points"] = _trend_points(ad_data["days"], "clicks", ceiling)
+    ad_data["axis"] = [
+        {"index": index, "label": day["label"], "span": min(5, len(ad_data["days"]) - index)}
+        for index, day in enumerate(ad_data["days"]) if index % 5 == 0
+    ]
+    for slot in ad_data["slots"]:
+        slot["ends_label"] = _day_label(slot["ends_at"])
+        slot["remaining_days"] = _remaining_days(slot["ends_at"])
+    return templates.TemplateResponse(
+        request, "partner_sites.html",
+        {"operator": operator, "sites": sites, "ad_slots": slots, "ad_data": ad_data,
+         "submitted": submitted == 1, "active": "sites"},
+    )
+
+
+@app.get("/partner/sites/new", response_class=HTMLResponse)
+async def partner_new_site_page(request: Request) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    return templates.TemplateResponse(request, "partner_site_new.html", {"operator": operator, "active": "sites"})
+
+
+@app.post("/partner/sites", response_class=HTMLResponse)
+async def partner_submit_site(
+    request: Request,
+    name: str = Form(...),
+    domain: str = Form(...),
+    description: str = Form(""),
+    contact_method: str = Form(""),
+    contact_handle: str = Form(""),
+    website_url: str = Form(""),
+) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-submit:" + str(operator["id"]), limit=10, window_s=3600)
+    if not allowed:
+        error = "提交过于频繁，请稍后再试。"
+        status = 429
+    else:
+        try:
+            partner.submit_site(operator["id"], name, domain, description, contact_method, contact_handle, website_url)
+        except partner.PartnerError as exc:
+            error = str(exc)
+            status = 400
+        else:
+            return RedirectResponse("/partner/sites?submitted=1", status_code=303)
+    return templates.TemplateResponse(
+        request, "partner_site_new.html",
+        {"operator": operator, "active": "sites", "error": error,
+         "name": name, "domain": domain, "description": description,
+         "contact_method": contact_method, "contact_handle": contact_handle, "website_url": website_url},
+        status_code=status,
+    )
+
+
+_PARTNER_BUSINESS_PAGES = {
+    "pricing": ("套餐报价", "了解站点收录、运营支持与展示合作。"),
+    "subscription": ("广告订阅", "查看展示合作方式与当前订阅状态。"),
+    "featured": ("精选置顶", "了解独立展示位与合作方式。"),
+    "ads": ("广告统计", "查看账号下的广告投放数据。"),
+}
+
+
+def _partner_business_page(request: Request, section: str) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    sites = partner.sites_for_operator(operator["id"])
+    slots = partner.ad_slots()
+    title, subtitle = _PARTNER_BUSINESS_PAGES[section]
+    return templates.TemplateResponse(request, "partner_business.html", {
+        "operator": operator, "active": section, "page_title": title, "page_subtitle": subtitle,
+        "sites": sites, "approved_count": sum(site["status"] == "approved" for site in sites),
+        "pending_count": sum(site["status"] == "pending" for site in sites),
+        "sponsor_slots": [slot for slot in slots if slot["code"].startswith("S")],
+        "selected_slots": [slot for slot in slots if slot["code"].startswith("T")],
+    })
+
+
+@app.get("/partner/pricing", response_class=HTMLResponse)
+async def partner_pricing_page(request: Request) -> Response:
+    return _partner_business_page(request, "pricing")
+
+
+@app.get("/partner/subscription", response_class=HTMLResponse)
+async def partner_subscription_page(request: Request) -> Response:
+    return _partner_business_page(request, "subscription")
+
+
+@app.get("/partner/featured", response_class=HTMLResponse)
+async def partner_featured_page(request: Request) -> Response:
+    return _partner_business_page(request, "featured")
+
+
+@app.get("/partner/ads", response_class=HTMLResponse)
+async def partner_ads_page(request: Request) -> Response:
+    return _partner_business_page(request, "ads")
+
+
+def _partner_account_page(request: Request, operator: dict, *, error: str = "") -> HTMLResponse:
+    return templates.TemplateResponse(request, "partner_account.html", {
+        "operator": operator, "active": "account", "error": error,
+    }, status_code=400 if error else 200)
+
+
+@app.get("/partner/account", response_class=HTMLResponse)
+async def partner_account_page(request: Request) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    return _partner_account_page(request, operator)
+
+
+@app.post("/partner/account/password")
+async def partner_account_password(request: Request, current_password: str = Form(...), new_password: str = Form(...)) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-password:" + str(operator["id"]), limit=5, window_s=3600)
+    if not allowed:
+        return _partner_account_page(request, operator, error="尝试次数过多，请稍后再试。")
+    try:
+        await asyncio.to_thread(partner.change_password, operator["id"], current_password, new_password)
+    except partner.PartnerError as exc:
+        return _partner_account_page(request, operator, error=str(exc))
+    partner.record_event("password_changed", actor_id=operator["id"], actor_name=operator["name"], subject=operator["name"])
+    response = RedirectResponse("/partner/login?changed=1", status_code=303)
+    response.delete_cookie(partner.SESSION_COOKIE, path="/")
+    return response
+
+
+def _admin_operator(request: Request) -> dict | None:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator and operator["role"] != "admin":
+        raise HTTPException(status_code=403, detail="管理员权限不足")
+    return operator
+
+
+def _day_label(timestamp: int | None) -> str:
+    """Beijing-time date label for a stored epoch second."""
+    return datetime.fromtimestamp(timestamp, analytics.SHANGHAI).strftime("%Y-%m-%d") if timestamp else ""
+
+
+def _remaining_days(ends_at: int | None) -> int | None:
+    return max(0, (ends_at - int(time.time()) + 86399) // 86400) if ends_at else None
+
+
+def _trend_points(days: list[dict], key: str, ceiling: int) -> str:
+    """Polyline across the chart box, valid for any window length (7–180 天)."""
+    if not days:
+        return ""
+    step = (648 - 24) / (len(days) - 1) if len(days) > 1 else 0
+    return " ".join(
+        f"{round(24 + index * step, 1)},{round(148 - day[key] * 112 / max(ceiling, 1), 1)}"
+        for index, day in enumerate(days)
+    )
+
+
+def _admin_page(
+    request: Request, operator: dict, *, section: str = "sites",
+    site_status: str = "approved", error: str = "", reviewed: bool = False,
+    range_key: str = analytics.DEFAULT_RANGE, ad_type: str = "sponsor",
+) -> HTMLResponse:
+    section = section if section in {"sites", "ads", "visits"} else "sites"
+    site_status = site_status if site_status in {"approved", "pending"} else "approved"
+    ad_type = ad_type if ad_type in {"sponsor", "recommended"} else "sponsor"
+    submissions = partner.all_site_submissions()
+    counts = {status: sum(site["status"] == status for site in submissions) for status in ("pending", "approved", "rejected")}
+    visible_sites = [site for site in submissions if site["status"] == site_status]
+    visible_sites.sort(key=lambda site: site["approved_at"] or site["created_at"], reverse=True)
+    for site in visible_sites:
+        site["created_label"] = _day_label(site["created_at"])
+        site["approved_label"] = _day_label(site["approved_at"])
+    traffic = analytics.dashboard(analytics.range_days(range_key)) if section == "visits" else None
+    if traffic:
+        ceiling = max((max(day["views"], day["visitors"]) for day in traffic["days"]), default=0)
+        traffic["views_points"] = _trend_points(traffic["days"], "views", ceiling)
+        traffic["visitors_points"] = _trend_points(traffic["days"], "visitors", ceiling)
+        traffic["ceiling"] = ceiling
+        traffic["top_page_max"] = max((item["views"] for item in traffic["top_pages"]), default=1)
+        traffic["range"] = range_key if range_key in {key for key, _, _ in analytics.VISIT_RANGES} else analytics.DEFAULT_RANGE
+        traffic["ranges"] = analytics.VISIT_RANGES
+        traffic["window_label"] = next(
+            label for key, label, _ in analytics.VISIT_RANGES if key == traffic["range"]
+        )
+        # 检测次数 shares the report aggregator with the red/black boards, so
+        # the dashboard and the board can never report different totals.
+        detection_total, detection_days = leaderboard.detection_activity(traffic["days"][0]["day"])
+        for day in traffic["days"]:
+            day["detections"] = detection_days.get(day["day"], 0)
+        traffic["detection_total"] = detection_total
+        traffic["detection_window"] = sum(day["detections"] for day in traffic["days"])
+        traffic["detection_ceiling"] = max((day["detections"] for day in traffic["days"]), default=0)
+        traffic["detection_points"] = _trend_points(traffic["days"], "detections", traffic["detection_ceiling"])
+    all_slots = partner.ad_slots()
+    slot_prefix = "S" if ad_type == "sponsor" else "T"
+    slots = [slot for slot in all_slots if slot["code"].startswith(slot_prefix)]
+    for slot in slots:
+        slot["ends_label"] = _day_label(slot["ends_at"])
+        slot["remaining_days"] = _remaining_days(slot["ends_at"])
+    return templates.TemplateResponse(
+        request, "partner_admin.html",
+        {"operator": operator, "submissions": visible_sites, "counts": counts, "error": error,
+         "reviewed": reviewed, "active": "admin_" + section, "section": section,
+         "site_status": site_status, "slots": slots, "ad_type": ad_type,
+         "approved_sites": partner.approved_sites(), "traffic": traffic,
+         "active_slots": len(partner.public_ad_slots()) if traffic else 0},
+        status_code=400 if error else 200,
+    )
+
+
+@app.get("/partner/admin", response_class=HTMLResponse)
+async def partner_admin_page(
+    request: Request, reviewed: int = 0, section: str = "sites", status: str = "approved",
+    range: str = analytics.DEFAULT_RANGE, ad_type: str = "sponsor",
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    return _admin_page(
+        request, operator, section=section, site_status=status,
+        reviewed=reviewed == 1, range_key=range, ad_type=ad_type,
+    )
+
+
+@app.get("/partner/admin/sites/new", response_class=HTMLResponse)
+async def partner_admin_new_site_page(request: Request) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    return templates.TemplateResponse(request, "partner_admin_site_new.html", {
+        "operator": operator, "active": "admin_sites", "operators": partner.all_operators_summary(),
+    })
+
+
+@app.post("/partner/admin/sites/new", response_class=HTMLResponse)
+async def partner_admin_add_site(
+    request: Request, name: str = Form(...), domain: str = Form(...),
+    owner_id: int = Form(...), website_url: str = Form(""),
+    description: str = Form(""), contact_method: str = Form(""), contact_handle: str = Form(""),
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-admin-add-site:" + str(operator["id"]), limit=30, window_s=3600)
+    try:
+        if not allowed:
+            raise partner.PartnerError("添加站点过于频繁，请稍后再试。")
+        partner.admin_add_site(
+            operator["id"], owner_id, name, domain, description, contact_method, contact_handle, website_url,
+        )
+    except partner.PartnerError as exc:
+        return templates.TemplateResponse(request, "partner_admin_site_new.html", {
+            "operator": operator, "active": "admin_sites", "operators": partner.all_operators_summary(),
+            "error": str(exc), "name": name, "domain": domain, "owner_id": owner_id,
+            "website_url": website_url, "description": description, "contact_method": contact_method,
+            "contact_handle": contact_handle,
+        }, status_code=400)
+    return RedirectResponse("/partner/admin?section=sites&added=1", status_code=303)
+
+
+@app.post("/partner/admin/review")
+async def partner_admin_review(
+    request: Request,
+    domain: str = Form(...),
+    status: str = Form(...),
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    if status not in {"approved", "rejected", "pending"}:
+        raise HTTPException(status_code=400, detail="无效的审核状态")
+    allowed, _ = check_rate("partner-admin-review:" + str(operator["id"]), limit=60, window_s=3600)
+    if not allowed:
+        return _admin_page(request, operator, error="审核操作过于频繁，请稍后再试。")
+    if not partner.set_site_status(domain, status, actor_id=operator["id"]):
+        raise HTTPException(status_code=404, detail="未找到站点申请")
+    return RedirectResponse("/partner/admin?section=sites&reviewed=1", status_code=303)
+
+
+@app.post("/partner/admin/ad-slot")
+async def partner_admin_ad_slot(
+    request: Request, code: str = Form(...), price_yuan: str = Form(""), domain: str = Form(""),
+    banner: UploadFile | None = File(None), banner_2: UploadFile | None = File(None),
+    ad_type: str = Form(""),
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-admin-slot:" + str(operator["id"]), limit=60, window_s=3600)
+    ad_type = "recommended" if code.startswith("T") else "sponsor"
+    if not allowed:
+        return _admin_page(request, operator, section="ads", ad_type=ad_type, error="广告位操作过于频繁，请稍后再试。")
+    raw_price = price_yuan.strip()
+    if raw_price and not re.fullmatch(r"(0|[1-9]\d{0,5})", raw_price):
+        return _admin_page(request, operator, section="ads", ad_type=ad_type, error="广告价格应为非负整数；留空表示待定。")
+    uploaded_names: list[str] = []
+    try:
+        for image in (banner, banner_2):
+            if image is not None and image.filename:
+                if not domain.strip():
+                    raise partner.PartnerError("请先选择已收录站点，再上传横幅。")
+                uploaded_names.append(partner.save_ad_banner(await image.read(partner.MAX_BANNER_BYTES + 1)))
+        partner.update_ad_slot(
+            operator["id"], code, int(raw_price) if raw_price else None, domain,
+            banner_image=uploaded_names[0] if banner and banner.filename else None,
+            banner_image_2=uploaded_names[-1] if banner_2 and banner_2.filename else None,
+        )
+    except Exception as exc:
+        for name in uploaded_names:
+            (partner.banner_directory() / name).unlink(missing_ok=True)
+        if isinstance(exc, partner.PartnerError):
+            return _admin_page(request, operator, section="ads", ad_type=ad_type, error=str(exc))
+        raise
+    return RedirectResponse(f"/partner/admin?section=ads&ad_type={ad_type}&updated=1#ad-slots", status_code=303)
+
+
+@app.post("/partner/admin/ad-reset")
+async def partner_admin_ad_reset(
+    request: Request, code: str = Form(...), ad_type: str = Form(""),
+) -> Response:
+    """清空重置一个广告位:解除站点绑定、撤下横幅、取消投放时长并保存。
+
+    价格回到当前目录价,广告位随即可以重新分配给新的站点。
+    """
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-admin-slot:" + str(operator["id"]), limit=60, window_s=3600)
+    ad_type = "recommended" if code.startswith("T") else "sponsor"
+    if not allowed:
+        return _admin_page(request, operator, section="ads", ad_type=ad_type, error="广告位操作过于频繁，请稍后再试。")
+    try:
+        cleared = partner.clear_ad_slot(operator["id"], code)
+    except partner.PartnerError as exc:
+        return _admin_page(request, operator, section="ads", ad_type=ad_type, error=str(exc))
+    return RedirectResponse(
+        f"/partner/admin?section=ads&ad_type={ad_type}&reset={1 if cleared else 0}#ad-slots", status_code=303,
+    )
+
+
+@app.post("/partner/admin/ad-duration")
+async def partner_admin_ad_duration(
+    request: Request, code: str = Form(...), duration_days: int = Form(...),
+    ad_type: str = Form(""),
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    ad_type = "recommended" if code.startswith("T") else "sponsor"
+    allowed, _ = check_rate("partner-admin-duration:" + str(operator["id"]), limit=60, window_s=3600)
+    try:
+        if not allowed:
+            raise partner.PartnerError("设置投放时长过于频繁，请稍后再试。")
+        partner.set_ad_duration(operator["id"], code, duration_days)
+    except partner.PartnerError as exc:
+        return _admin_page(request, operator, section="ads", ad_type=ad_type, error=str(exc))
+    return RedirectResponse(f"/partner/admin?section=ads&ad_type={ad_type}&duration=1#ad-slots", status_code=303)
+
+
+@app.post("/partner/admin/password")
+async def partner_admin_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+) -> Response:
+    operator = _admin_operator(request)
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    allowed, _ = check_rate("partner-admin-password:" + str(operator["id"]), limit=5, window_s=3600)
+    if not allowed:
+        return _admin_page(request, operator, error="尝试次数过多，请稍后再试。")
+    try:
+        await asyncio.to_thread(partner.change_password, operator["id"], current_password, new_password)
+    except partner.PartnerError as exc:
+        return _admin_page(request, operator, error=str(exc))
+    partner.record_event("password_changed", actor_id=operator["id"], actor_name=operator["name"], subject=operator["name"])
+    response = RedirectResponse("/partner/login?changed=1", status_code=303)
+    response.delete_cookie(partner.SESSION_COOKIE, path="/")
+    return response
 
 
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
@@ -187,8 +883,8 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
     """每域名独立详情页 — SEO 长尾关键的杠杆。
 
     用户搜「{domain} 中转站怎么样」/「{domain} 真假」/「{domain} 评测」时,
-    Google 直接命中此页。包含该域名的所有历史检测、协议覆盖、最常失败的
-    detector,以及指向每份具体 /r/{job_id} 报告的链接。
+    Google 直接命中此页。包含该域名的所有历史检测、协议覆盖,
+    以及指向每份具体 /r/{job_id} 报告的链接。
     """
     if not leaderboard.is_valid_domain(domain):
         raise HTTPException(status_code=404, detail="invalid domain")
@@ -197,23 +893,12 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
         raise HTTPException(status_code=404, detail="no reports for this domain")
     relay, history = result
 
-    # Top 5 most-failed detectors across all protocols — the headline issues.
-    failed_summary: list[tuple[str, int]] = []
-    seen_names: set[str] = set()
-    for ps in relay.by_protocol.values():
-        for name, cnt in ps.failed_detectors.most_common(5):
-            if name not in seen_names:
-                failed_summary.append((name, cnt))
-                seen_names.add(name)
-    failed_summary.sort(key=lambda x: x[1], reverse=True)
-
     return templates.TemplateResponse(
         request,
         "leaderboard_detail.html",
         {
             "relay": relay,
             "history": history,
-            "failed_summary": failed_summary[:8],
             "protocol_labels": leaderboard.PROTOCOL_LABELS,
             "verdict_labels": leaderboard.VERDICT_LABELS,
         },

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}注册站长账号并申请收录 | 零一智鉴{% endblock %}
+{% block description %}一次填完站长账号与站点收录资料，提交后即可在站长中心查看审核进度。{% endblock %}
+{% block main_class %} partner-page{% endblock %}
+{% block head_extra %}<script src="/static/home-specular.js" defer></script>{% endblock %}
+{% block content %}
+<header class="partner-intro">
+  <h1 class="home-flow-title">注册站长账号</h1>
+</header>
+<section class="partner-panel" aria-labelledby="partner-register-title">
+  <h2 id="partner-register-title">账号与收录资料</h2>
+  {% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/partner/register" class="partner-form partner-form-stack">
+    <fieldset class="partner-form-group">
+      <legend>站长账号</legend>
+      <div class="partner-form-grid partner-form-grid--paired">
+        <div class="partner-field">
+          <label for="partner-name">用户名 <span aria-hidden="true">*</span></label>
+          <input id="partner-name" name="name" type="text" minlength="2" maxlength="80" required autocomplete="username" placeholder="站长或团队名称" value="{{ name|default('', true) }}" />
+        </div>
+        <div class="partner-field">
+          <label for="partner-password">密码 <span aria-hidden="true">*</span></label>
+          <input id="partner-password" name="password" type="password" minlength="10" maxlength="128" required autocomplete="new-password" placeholder="至少 10 个字符" />
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="partner-form-group">
+      <legend>收录信息</legend>
+      <div class="partner-form-grid partner-form-grid--site-identity">
+        <div class="partner-field">
+          <label for="register-site-name">站点名称 <span aria-hidden="true">*</span></label>
+          <input id="register-site-name" name="site_name" type="text" required minlength="2" maxlength="80" placeholder="站点或品牌名称" value="{{ site_name|default('', true) }}" />
+        </div>
+        <div class="partner-field">
+          <label for="register-site-domain">站点域名 <span aria-hidden="true">*</span></label>
+          <input id="register-site-domain" name="domain" type="text" required maxlength="253" placeholder="api.example.com" value="{{ domain|default('', true) }}" />
+        </div>
+      </div>
+      <div class="partner-form-grid partner-form-grid--paired">
+        <fieldset class="partner-contact-method">
+          <legend>联系方式 <span aria-hidden="true">*</span></legend>
+          <div class="partner-contact-options">
+            <label><input type="radio" name="contact_method" value="qq" required {% if contact_method|default('', true) == 'qq' %}checked{% endif %} />QQ</label>
+            <label><input type="radio" name="contact_method" value="wechat" required {% if contact_method|default('', true) == 'wechat' %}checked{% endif %} />微信</label>
+          </div>
+        </fieldset>
+        <div class="partner-field">
+          <label for="register-contact-handle">QQ 或 微信 <span aria-hidden="true">*</span></label>
+          <input id="register-contact-handle" name="contact_handle" type="text" required maxlength="80" autocomplete="off" placeholder="填写所选方式的账号" value="{{ contact_handle|default('', true) }}" />
+        </div>
+      </div>
+      <div class="partner-field">
+        <label for="register-site-description">站点简介 <span aria-hidden="true">*</span></label>
+        <textarea id="register-site-description" name="description" required maxlength="500" rows="3" placeholder="简单介绍服务与支持的协议">{{ description|default('', true) }}</textarea>
+      </div>
+    </fieldset>
+
+    <div class="partner-actions partner-actions--paired">
+      <button class="partner-cta home-specular-button" data-home-specular type="submit"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">创建账号并提交收录</span></button>
+      <a class="partner-cta home-specular-button" data-home-specular href="/partner/login"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">已有账号？去登录</span></a>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block footer %}{% endblock %}

@@ -5,6 +5,7 @@ import path from 'node:path';
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const verifierRoot = path.join(projectRoot, 'zero-one-api-verifier');
 const verifierPython = path.join(verifierRoot, '.venv', 'bin', 'python');
+const verifierSource = path.join(verifierRoot, 'src');
 const viteCli = path.join(projectRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 const forwardedArgs = process.argv.slice(2);
 
@@ -17,6 +18,7 @@ const verifier = spawn(
     env: {
       ...process.env,
       PYTHONUNBUFFERED: '1',
+      PYTHONPATH: [verifierSource, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
       VERIDROP_JOBS_DIR: process.env.VERIDROP_JOBS_DIR || path.join(verifierRoot, 'web_data', 'jobs'),
       VERIDROP_WISHLIST_PATH:
         process.env.VERIDROP_WISHLIST_PATH || path.join(verifierRoot, 'web_data', 'wishlist.txt'),

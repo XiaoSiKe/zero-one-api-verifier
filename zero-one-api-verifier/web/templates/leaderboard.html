@@ -41,107 +41,138 @@
 </script>
 {% endblock %}
 
-{% macro relay_row(r, rank_index) %}
+{% macro slot_badge(slot_code) %}
+  {%- if slot_code -%}
+    <span class="lb-slot-badge{% if slot_code.startswith('S') %} lb-slot-badge-sponsor{% else %} lb-slot-badge-pick{% endif %}">{% if slot_code.startswith('T') %}精选展示{% else %}赞助置顶{% endif %} · {{ slot_code }} {{ slot_labels.get(slot_code, '') }}</span>
+  {%- endif -%}
+{% endmacro %}
+
+{% macro status_dots(r) %}
+  {%- set filled = (r.overall_median / 12.5)|round|int if r.overall_median else 0 -%}
+  <span class="lb-dots lb-dots-{{ r.verdict_class }}" title="综合状态由最近一次公开检测判定推导" aria-hidden="true">{% for _ in range(filled) %}<i class="is-on"></i>{% endfor %}{% for _ in range(8 - filled) %}<i></i>{% endfor %}</span>
+{% endmacro %}
+
+{% macro relay_row(r, rank_index, slot_code=None) %}
 <article class="lb-row" id="{{ r.domain }}">
-  <div class="lb-rank">
-    {% if rank_index == 1 and r.is_ranked %}🥇
-    {% elif rank_index == 2 and r.is_ranked %}🥈
-    {% elif rank_index == 3 and r.is_ranked %}🥉
-    {% else %}<span class="lb-rank-num">{{ rank_index }}</span>{% endif %}
+  <div class="lb-rank-block">
+    <span class="lb-score lb-score-{{ r.verdict_class }}">
+      <span class="lb-score-num">{{ "%.0f"|format(r.overall_median) }}</span>
+      <span class="lb-score-label">中位分</span>
+    </span>
+    <span class="lb-rank-line">{% if rank_index <= 3 and r.is_ranked %}<span class="lb-medal" aria-hidden="true">{% if rank_index == 1 %}🥇{% elif rank_index == 2 %}🥈{% else %}🥉{% endif %}</span>{% endif %}<span class="lb-rank-num">第 {{ rank_index }} 位</span></span>
   </div>
   <div class="lb-main">
-    <h2 class="lb-domain">
-      <a href="/leaderboard/{{ r.domain }}" title="查看 {{ r.domain }} 全部检测历史">{{ r.domain }}</a>
-    </h2>
-    <p class="lb-meta">
-      <strong>{{ r.total_count }}</strong> 次检测 ·
-      <strong>{{ r.protocols_label }}</strong>
-      {% if r.last_checked %}
-        · 最近 {{ r.last_checked.strftime('%Y-%m-%d') }}
-      {% endif %}
-      {% if not r.is_ranked %}
-        · <span class="lb-badge-info">单次样本,仅供参考</span>
-      {% endif %}
-      · <a class="lb-detail-link" href="/leaderboard/{{ r.domain }}">查看完整历史 →</a>
-    </p>
-    <div class="lb-protocols">
-      {% for proto, ps in r.by_protocol.items() %}
-        {% set verdict_zh = verdict_labels.get(ps.last_verdict, ps.last_verdict) %}
-        {% set badge_class = 'ok' if ps.last_score >= 85 else ('good' if ps.last_score >= 70 else ('warn' if ps.last_score >= 50 else 'fail')) %}
-        <a class="lb-proto-chip lb-proto-{{ badge_class }}" href="/r/{{ ps.last_job_id }}" title="点击查看 {{ protocol_labels.get(proto, proto) }} 最新报告">
-          <span class="lb-proto-name">{{ protocol_labels.get(proto, proto) }}</span>
-          <span class="lb-proto-score">{{ "%.0f"|format(ps.last_score) }}</span>
-          <span class="lb-proto-verdict">{{ verdict_zh }}</span>
-          {% if ps.count > 1 %}
-            <span class="lb-proto-count">×{{ ps.count }}</span>
-          {% endif %}
-        </a>
-      {% endfor %}
+    <div class="lb-title-line">
+      <h2 class="lb-domain">
+        <a href="/leaderboard/{{ r.domain }}" title="查看 {{ r.domain }} 全部检测历史">{% if site_names.get(r.domain) %}{{ site_names[r.domain] }}{% else %}{{ r.domain }}{% endif %}</a>
+      </h2>
+      <p class="lb-sub"><span class="lb-sub-domain">{{ r.domain }}</span>{% if r.domain in certified_domains %}<span class="lb-certification">已收录认证</span>{% endif %}{{ slot_badge(slot_code) }}{% if not r.is_ranked %}<span class="lb-badge-info">单次样本,仅供参考</span>{% endif %}</p>
     </div>
-    {% set top_failed = [] %}
-    {% for ps in r.by_protocol.values() %}
-      {% for name, cnt in ps.failed_detectors.most_common(2) %}
-        {% set _ = top_failed.append((name, cnt)) %}
-      {% endfor %}
-    {% endfor %}
-    {% if top_failed %}
-      <p class="lb-issues">
-        常见问题:
-        {% for name, cnt in top_failed[:3] %}
-          <code>{{ name }}</code>{% if not loop.last %}、{% endif %}
-        {% endfor %}
-      </p>
-    {% endif %}
+    <div class="lb-modules">
+      <div class="lb-module"><span>检测次数</span><strong>{{ r.total_count }} 次</strong></div>
+      <div class="lb-module"><span>协议覆盖</span><strong>{{ r.protocols_label or '—' }}</strong></div>
+      <div class="lb-module"><span>最近探测</span><strong>{% if r.last_checked %}{{ r.last_checked.strftime('%Y-%m-%d') }}{% else %}—{% endif %}</strong></div>
+      <div class="lb-module"><span>运行状态</span><strong class="lb-status">{{ status_dots(r) }}<span class="lb-status-label">{{ verdict_labels.get(r.last_verdict, '待检测') }}</span></strong></div>
+    </div>
   </div>
-  <div class="lb-score lb-score-{{ r.verdict_class }}">
-    <span class="lb-score-num">{{ "%.0f"|format(r.overall_median) }}</span>
-    <span class="lb-score-label">中位</span>
+  <div class="lb-actions">
+    <a class="lb-action" href="/leaderboard/{{ r.domain }}">站点详情</a>
+    <a class="lb-action lb-action-out" href="https://{{ r.domain }}" target="_blank" rel="noopener noreferrer">直达官网</a>
   </div>
 </article>
 {% endmacro %}
 
+{% macro catalog_row(site, slot_code=None, rank_index=None) %}
+<article class="lb-row lb-catalog-row" id="{{ site.domain }}">
+  <div class="lb-rank-block">
+    <span class="lb-score lb-score-unrated"><span class="lb-score-num">—</span><span class="lb-score-label">未检测</span></span>
+    {% if rank_index %}<span class="lb-rank-line"><span class="lb-rank-num">第 {{ rank_index }} 位</span></span>{% endif %}
+  </div>
+  <div class="lb-main">
+    <div class="lb-title-line">
+      <h2 class="lb-domain"><a href="{{ site.website_url or 'https://' ~ site.domain }}" target="_blank" rel="noopener noreferrer">{{ site.name }}</a></h2>
+      <p class="lb-sub"><span class="lb-sub-domain">{{ site.domain }}</span><span class="lb-certification">已收录认证</span>{{ slot_badge(slot_code) }}</p>
+    </div>
+    <div class="lb-modules">
+      <div class="lb-module"><span>检测次数</span><strong>0 次</strong></div>
+      <div class="lb-module"><span>协议覆盖</span><strong>—</strong></div>
+      <div class="lb-module"><span>最近探测</span><strong>—</strong></div>
+      <div class="lb-module"><span>运行状态</span><strong class="lb-status"><span class="lb-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="lb-status-label">暂无公开检测报告</span></strong></div>
+    </div>
+    {% if site.description %}<p class="lb-catalog-description">{{ site.description }}</p>{% endif %}
+  </div>
+  <div class="lb-actions">
+    <a class="lb-action" href="{{ site.website_url or 'https://' ~ site.domain }}" target="_blank" rel="noopener noreferrer">直达官网</a>
+  </div>
+</article>
+{% endmacro %}
+
+{% block main_class %} leaderboard-page{% endblock %}
 {% block content %}
 <section class="hub-hero">
-  <h1>AI API 中转站红黑榜</h1>
-  <p class="answer-capsule">
-    <strong>零一智鉴</strong>基于社区公开检测数据自动聚合,按
-    <strong>贝叶斯加权评分</strong>排行 AI API 中转站质量(测试越多 + 分数越稳定 → 排名越前)。
-    数据来自 <strong>{{ summary.total_reports }}</strong> 份公开检测报告,共覆盖
-    <strong>{{ summary.total_relays }}</strong> 家中转站
-    ({{ summary.ranked_relays }} 家有 ≥2 次检测可参与正式排名)。
-    <span class="hub-meta-inline">数据每 10 分钟刷新 · 想给中转站做检测?<a href="/">回首页</a></span>
+  <h1 class="home-flow-title">AI API 中转站红黑榜</h1>
+  <p class="answer-capsule leaderboard-intro">
+    <strong>零一智鉴</strong>基于社区公开检测数据自动聚合,按 <strong>贝叶斯加权评分</strong>排行 AI API 中转站质量
   </p>
 </section>
 
-{% if not top_relays and not has_rest %}
-<section class="hub-note">
-  <p>暂无检测数据。<a href="/">去做第一次检测 →</a></p>
+<section class="board-sponsors" aria-label="赞助置顶榜单">
+  <div class="board-sponsor-grid">
+    {% for number in range(1, 9) %}
+    {% set placement = sponsor_slots.get('S' ~ number) %}
+    <a class="board-sponsor-slot{% if placement and placement.image_urls %} has-banner{% endif %}{% if placement and placement.image_urls|length == 2 %} has-rotation{% endif %}" href="{% if placement %}{{ placement.tracking_url }}{% else %}/partner/register{% endif %}"{% if placement %} target="_blank" rel="noopener noreferrer"{% endif %} aria-label="赞助位 S{{ number }}，{% if placement %}{{ placement.name }}{% else %}申请展示{% endif %}">
+      {% if placement %}{% for image_url in placement.image_urls %}<img class="board-slot-image is-image-{{ loop.index }}" src="{{ image_url }}" alt="" loading="lazy" />{% endfor %}{% endif %}
+      <span class="board-slot-copy">
+        <strong>{% if placement %}{{ placement.name }}{% else %}S{{ number }} · 优选横幅{% endif %}</strong>
+        <span>{% if placement %}{{ placement.domain }}{% else %}广告位招商中{% endif %}</span>
+      </span>
+      <span class="board-slot-badge">赞助置顶 · S{{ number }}</span>
+    </a>
+    {% endfor %}
+  </div>
 </section>
-{% else %}
 
-{# ───── 主榜 Top 10 ───── #}
-{% if top_relays %}
+<nav class="board-tabs" aria-label="榜单分类">
+  <a href="/leaderboard?board=featured"{% if board == 'featured' %} aria-current="page" class="is-active"{% endif %}>靠谱精选榜</a>
+  <a href="/leaderboard?board=certified"{% if board == 'certified' %} aria-current="page" class="is-active"{% endif %}>认证综合榜</a>
+  <a href="/leaderboard?board=all"{% if board == 'all' %} aria-current="page" class="is-active"{% endif %}>全部站点合集</a>
+</nav>
+
+{# ───── 主榜 Top 10 / 精选 T1–T8 ───── #}
+{% if board != 'all' %}
 <section class="lb-section-heading">
-  <h2>🏆 主榜 Top {{ top_relays|length }}</h2>
-  <p class="muted small">按贝叶斯加权评分排序 — 测试越多次的中转站,分数越能反映真实能力</p>
+  <h2>🏆 {% if board == 'featured' %}靠谱精选榜{% else %}认证综合榜{% endif %}</h2>
 </section>
+{% if top_relays %}
 <section class="leaderboard-list">
   {% for r in top_relays %}
-    {{ relay_row(r, loop.index) }}
+    {% if r.catalog_only is defined and r.catalog_only %}
+      {{ catalog_row(r, slot_by_domain.get(r.domain), loop.index) }}
+    {% else %}
+      {{ relay_row(r, loop.index, slot_by_domain.get(r.domain)) }}
+    {% endif %}
   {% endfor %}
 </section>
+{% else %}
+<p class="lb-empty">{% if board == 'featured' %}当前 T1–T8 精选展示位暂无站点。{% else %}当前没有通过审核且已检测的站点。{% endif %}</p>
 {% endif %}
+{% endif %}
+
+{% if top_relays or has_rest %}
 
 {# ───── 全部列表(分页)───── #}
 {% if has_rest %}
 <section class="lb-section-heading">
-  <h2>全部中转站</h2>
-  <p class="muted small">共 {{ summary.total_relays }} 家,当前第 {{ page }} / {{ total_pages }} 页</p>
+  <h2>{% if board == 'all' %}全部站点合集{% else %}更多站点{% endif %}</h2>
 </section>
 {% if rest_relays %}
 <section class="leaderboard-list">
   {% for r in rest_relays %}
-    {{ relay_row(r, rest_start_rank + loop.index0) }}
+    {% if r.catalog_only is defined and r.catalog_only %}
+      {{ catalog_row(r, slot_by_domain.get(r.domain), rest_start_rank + loop.index0) }}
+    {% else %}
+      {{ relay_row(r, rest_start_rank + loop.index0, slot_by_domain.get(r.domain)) }}
+    {% endif %}
   {% endfor %}
 </section>
 
@@ -149,7 +180,7 @@
 {% if total_pages > 1 %}
 <nav class="lb-pagination" aria-label="分页">
   {% if page > 1 %}
-    <a class="lb-page-btn" href="?page={{ page - 1 }}">← 上一页</a>
+    <a class="lb-page-btn" href="?board={{ board }}&amp;page={{ page - 1 }}">← 上一页</a>
   {% else %}
     <span class="lb-page-btn lb-page-disabled">← 上一页</span>
   {% endif %}
@@ -161,7 +192,7 @@
       {% if p == page %}
         <span class="lb-page-btn lb-page-current">{{ p }}</span>
       {% else %}
-        <a class="lb-page-btn" href="?page={{ p }}">{{ p }}</a>
+        <a class="lb-page-btn" href="?board={{ board }}&amp;page={{ p }}">{{ p }}</a>
       {% endif %}
     {% elif p == page - window - 1 or p == page + window + 1 %}
       <span class="lb-page-ellipsis">…</span>
@@ -169,7 +200,7 @@
   {% endfor %}
 
   {% if page < total_pages %}
-    <a class="lb-page-btn" href="?page={{ page + 1 }}">下一页 →</a>
+    <a class="lb-page-btn" href="?board={{ board }}&amp;page={{ page + 1 }}">下一页 →</a>
   {% else %}
     <span class="lb-page-btn lb-page-disabled">下一页 →</span>
   {% endif %}
@@ -179,18 +210,6 @@
 {% endif %}
 
 {% endif %}
-
-<section class="hub-note">
-  <h2>红黑榜怎么算的?</h2>
-  <p>
-    每份 <code>/r/{job_id}</code> 公开报告自动汇入此榜,按 <strong>base_url 域名</strong>分组。
-    排名使用 <strong>贝叶斯加权评分</strong>(prior=50,prior_weight=5):
-    一次满分 100 的中转站排名分仅 58.3,需要测 ≥10 次稳定接近满分才能升到主榜前列。
-    这避免了"新中转站随机跑一次拿满分就霸榜"的问题,真正经得起多次检验的中转站排前。
-    UI 显示的"中位"是历次分数的中位数(给用户直观参考),排序按贝叶斯加权。
-  </p>
-  <p class="small muted">
-    单次检测的中转站不进入主榜(避免噪声),仍然在全部列表底部可见。
-  </p>
-</section>
 {% endblock %}
+
+{% block footer %}{% endblock %}

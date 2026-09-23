@@ -112,6 +112,7 @@ export function createPlatformApp({
     },
   }));
   app.use(express.static(publicDir));
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.use(httpSession.middleware);
 
   app.use((_req, res, next) => {

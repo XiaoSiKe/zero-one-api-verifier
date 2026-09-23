@@ -1,29 +1,102 @@
-# Docker Compose 项目名：zero-one-api-verifier-preview
+# Docker Compose 项目名独立于同机上的旧版预览。
 # `docker compose ls` 与默认容器/网络/卷名称都会使用这个前缀。
-name: zero-one-api-verifier-preview
+#
+# 两个服务一起构成完整预览：
+#   verifier —— FastAPI + Jinja2 服务（首页检测、红黑榜、站点详情、站长中心、管理后台）
+#   web      —— Vite 营销站，并把 /leaderboard /partner /api 等路径反向代理到 verifier
+# 因此浏览器只需要打开 web 的端口（默认 http://127.0.0.1:5175）即可预览全部页面；
+# verifier 也单独映射端口（默认 8123）方便直接调试接口。
+name: zeroone-zhijian-current
 
 services:
-  web:
+  verifier:
     build:
       context: .
-    ports:
-      - "${LOCAL_PREVIEW_PORT:-5173}:5173"
+    working_dir: /app/zero-one-api-verifier
+    command:
+      - /app/zero-one-api-verifier/.venv/bin/python
+      - -m
+      - uvicorn
+      - web.server:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8012"
+      - --forwarded-allow-ips
+      - "*"
     environment:
-      VERIDROP_JOBS_DIR: /app/zero-one-api-verifier/web_data/jobs
-      VERIDROP_WISHLIST_PATH: /app/zero-one-api-verifier/web_data/wishlist.txt
+      VERIDROP_WEB_DATA_DIR: /app/zero-one-api-verifier/web_data
+    ports:
+      - "127.0.0.1:${VERIFIER_PREVIEW_PORT:-8123}:8012"
     volumes:
       - verifier-web-data:/app/zero-one-api-verifier/web_data
     healthcheck:
       test:
         - CMD
+        - /app/zero-one-api-verifier/.venv/bin/python
+        - -c
+        - import urllib.request; raise SystemExit(0 if urllib.request.urlopen('http://127.0.0.1:8012/healthz', timeout=3).status == 200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+    # Compose already runs the FastAPI app in the verifier service. Start only
+    # Vite here; `npm run dev` would launch a second, redundant Uvicorn process.
+    command:
+      - node
+      - node_modules/vite/bin/vite.js
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5173"
+      - --strictPort
+    depends_on:
+      verifier:
+        condition: service_healthy
+    environment:
+      VERIFIER_TARGET: http://verifier:8012
+    ports:
+      - "127.0.0.1:${LOCAL_PREVIEW_PORT:-5175}:5173"
+    healthcheck:
+      test:
+        - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:5173/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+        - Promise.all([fetch('http://127.0.0.1:5173/'),fetch('http://127.0.0.1:5173/healthz'),fetch('http://127.0.0.1:5173/partner/register')]).then(async ([home,health,register])=>{const data=await health.json();const page=await register.text();if(!home.ok||!health.ok||data.ok!==true||!register.ok||!page.includes('注册站长账号'))process.exit(1)}).catch(()=>process.exit(1))
       interval: 10s
       timeout: 3s
       retries: 6
       start_period: 20s
     restart: unless-stopped
+
+  # 可选：一次性灌入演示数据（站点、广告位、半年检测报告、访客记录）。
+  # 默认不会运行，需要显式指定 profile：
+  #   docker compose --profile demo up seed
+  seed:
+    build:
+      context: .
+    profiles:
+      - demo
+    working_dir: /app/zero-one-api-verifier
+    command:
+      - /app/zero-one-api-verifier/.venv/bin/python
+      - scripts/preview_seed.py
+    environment:
+      VERIDROP_WEB_DATA_DIR: /app/zero-one-api-verifier/web_data
+      PREVIEW_ADMIN: ${PREVIEW_ADMIN:-preview-admin}
+      PREVIEW_ADMIN_PASSWORD: ${PREVIEW_ADMIN_PASSWORD:-preview-admin-2026}
+      PREVIEW_OPERATOR_PASSWORD: ${PREVIEW_OPERATOR_PASSWORD:-preview-operator-2026}
+    volumes:
+      - verifier-web-data:/app/zero-one-api-verifier/web_data
+    depends_on:
+      verifier:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   verifier-web-data:

@@ -85,118 +85,79 @@
   ]
 }
 </script>
+<script src="/static/home-specular.js" defer></script>
 {% endblock %}
 
-{% block page_background %}
-<div class="threads-background" data-threads aria-hidden="true"></div>
-{% endblock %}
+{% block main_class %} hub-container{% endblock %}
 
 {% block content %}
-<section class="hub-hero">
-  <p class="hero-eyebrow">ZeroOne · API Verification Platform</p>
-  <h1 class="stroke-text stroke-text-title" data-stroke-text data-font-size="69" data-letter-spacing="-2.4" data-shiny-after-fill>零一智鉴 <span class="no-break">· API</span> 真测雷达</h1>
-  <p class="hero-slogan stroke-text" data-stroke-text data-font-size="25" data-letter-spacing="-0.5" data-shiny-after-fill>从零到一，让每一个接口有据可鉴！</p>
-  <p class="answer-capsule" id="hub-definition">
-    <strong>零一智鉴</strong>是免费的 AI API 中转站检测工具：通过真实请求、协议字段、能力响应与用量证据，
-    评估 Claude / GPT / Gemini 接口是否按声明工作。无需注册，API key 不持久化，代码开源可审计。
-  </p>
-  <p class="hub-meta" id="hub-stats">
-    <strong>3 个</strong>协议 · <strong>最多 27 项</strong>检测能力 · <strong>30–75 秒</strong>生成报告 · 结果可分享
-  </p>
-  <a class="btn btn-primary specular-button hub-primary-action" href="/claude" aria-describedby="hub-definition">
-    开始检测 Claude 中转站
-  </a>
-</section>
-
-<section class="trust-strip" aria-labelledby="trust-title">
-  <div class="trust-strip-head">
-    <h2 id="trust-title">开源证据，不靠黑盒承诺</h2>
-    <p>检测需要使用你的 API key 发出真实请求，因此评分逻辑、密钥处理和部署方式都必须可审计。</p>
-  </div>
-  <div class="trust-cards">
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true">01</div>
-      <h3>检测逻辑公开</h3>
-      <p>检测器、权重和字段级证据生成逻辑全部可查，每一项结论都能回溯到代码。</p>
-      <a class="trust-link" href="https://github.com/XiaoSiKe/zero-one-api-verifier/tree/main/zero-one-api-verifier/src/relay_detector" target="_blank" rel="noopener noreferrer">查看检测器源码 →</a>
-    </article>
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true">02</div>
-      <h3>API key 不持久化</h3>
-      <p>Key 仅用于当次任务，不写入报告或持久化存储；安全承诺附有对应的代码位置。</p>
-      <a class="trust-link" href="https://github.com/XiaoSiKe/zero-one-api-verifier/blob/main/zero-one-api-verifier/SECURITY.md" target="_blank" rel="noopener noreferrer">查看安全策略 →</a>
-    </article>
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true">03</div>
-      <h3>可完全自托管</h3>
-      <p>如果不希望 key 离开自己的网络，可在自有环境部署同一套开源检测服务。</p>
-      <a class="trust-link" href="https://github.com/XiaoSiKe/zero-one-api-verifier#readme" target="_blank" rel="noopener noreferrer">查看自托管说明 →</a>
-    </article>
-  </div>
-</section>
-
-<section class="protocol-grid" aria-label="选择要检测的 API 协议">
-  <article class="protocol-card">
-    <div class="protocol-top">
-      <span class="protocol-kicker">Claude</span>
-      <span class="tier-badge tier-crypto">多维证据级</span>
-    </div>
-    <h2>Claude API 中转站检测</h2>
-    <p>最多 12 项检查覆盖 thinking signature 结构、行为一致性、PDF、工具调用、用量与长上下文。</p>
-    <a class="btn btn-ghost protocol-action" href="/claude">检测 Claude →</a>
-  </article>
-  <article class="protocol-card">
-    <div class="protocol-top">
-      <span class="protocol-kicker">OpenAI</span>
-      <span class="tier-badge tier-behavioral">行为 / 协议级</span>
-    </div>
-    <h2>OpenAI 中转站检测</h2>
-    <p>8 项检查覆盖 Chat Completions 形状、function calling、structured output、流式一致性和 usage 异源痕迹。</p>
-    <a class="btn btn-ghost protocol-action" href="/openai">检测 OpenAI →</a>
-  </article>
-  <article class="protocol-card">
-    <div class="protocol-top">
-      <span class="protocol-kicker">Gemini</span>
-      <span class="tier-badge tier-protocol">协议级</span>
-    </div>
-    <h2>Gemini 中转站检测</h2>
-    <p>7 项检查覆盖 OpenAI-compatible Chat Completions 形状、工具调用、结构化输出、流式一致性和 usage。</p>
-    <a class="btn btn-ghost protocol-action" href="/gemini">检测 Gemini →</a>
-  </article>
-</section>
-
-<section class="how-it-works" aria-labelledby="how-title">
-  <h2 id="how-title">三步完成一次真实检测</h2>
-  <ol class="how-steps">
+<section class="home-how-section" aria-labelledby="how-title">
+  <h1 class="home-flow-title" id="how-title">怎么用?三步 60 秒</h1>
+  <ol class="home-how-steps">
     <li>
-      <span class="how-num" aria-hidden="true">1</span>
+      <span class="home-step-number">1</span>
+      <div><h3>填中转站地址 + API key</h3></div>
+    </li>
+  </ol>
+
+  <div class="home-protocol-grid" role="region" aria-label="支持的检测协议">
+    <article class="home-protocol-card">
+      <div class="home-protocol-top">
+        <span class="home-protocol-kicker">Claude</span>
+        <span class="home-tier-badge home-tier-crypto">加密级验证</span>
+      </div>
+      <h2>Claude API 中转站检测</h2>
+      <p>12 项检测,核心是 thinking signature 加密签名 — 这是 Anthropic 服务端真实加密产物 (500-2000 字符),中转站理论上无法伪造;Token 用量检查会额外识别 usage 虚报风险。</p>
+      <a class="home-protocol-button home-specular-button" href="/claude" data-home-specular>
+        <span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">检测 Claude 中转站 →</span>
+      </a>
+    </article>
+    <article class="home-protocol-card">
+      <div class="home-protocol-top">
+        <span class="home-protocol-kicker">OpenAI</span>
+        <span class="home-tier-badge home-tier-behavioral">行为/协议级</span>
+      </div>
+      <h2>OpenAI 中转站检测</h2>
+      <p>8 项检测覆盖 Chat Completions 协议合规、function calling、structured output、流式一致性。能识别中转站把 GPT 请求偷偷转给 Claude / Gemini 后端的「换芯」行为。</p>
+      <a class="home-protocol-button home-specular-button" href="/openai" data-home-specular>
+        <span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">检测 OpenAI 中转站 →</span>
+      </a>
+    </article>
+    <article class="home-protocol-card">
+      <div class="home-protocol-top">
+        <span class="home-protocol-kicker">Gemini</span>
+        <span class="home-tier-badge home-tier-protocol">协议级</span>
+      </div>
+      <h2>Gemini 中转站检测</h2>
+      <p>7 项检测覆盖 Gemini OpenAI 兼容协议、function calling、structured output、流式一致性和 usage 字段。适配 Gemini 3 thinking-by-default 模型的特殊处理。</p>
+      <a class="home-protocol-button home-specular-button" href="/gemini" data-home-specular>
+        <span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">检测 Gemini 中转站 →</span>
+      </a>
+    </article>
+  </div>
+
+  <ol class="home-how-steps home-how-steps-continuation" start="2">
+    <li>
+      <span class="home-step-number">2</span>
       <div>
-        <h3>选协议，填地址和 API key</h3>
-        <p>进入 <a href="/claude">Claude</a>、<a href="/openai">OpenAI</a> 或 <a href="/gemini">Gemini</a> 检测页，粘贴中转站 base URL 和 key。</p>
+        <h3>点「开始检测」,等 30-70 秒</h3>
+        <p>零一智鉴并发跑 7-10 项检测,实时显示进度。期间消耗的 token 由你的 key 支付 (Haiku 约 $0.012,GPT-4o-mini 约 $0.005)。</p>
       </div>
     </li>
     <li>
-      <span class="how-num" aria-hidden="true">2</span>
+      <span class="home-step-number">3</span>
       <div>
-        <h3>发起真实请求</h3>
-        <p>系统在提交前探测可用模型，再按选定模式运行检测；请求会产生少量上游 token 费用。</p>
-      </div>
-    </li>
-    <li>
-      <span class="how-num" aria-hidden="true">3</span>
-      <div>
-        <h3>阅读证据和风险</h3>
-        <p>报告列出总分、未通过项与字段级细节；可分享报告，也可在<a href="/leaderboard">红黑榜</a>查看聚合结果。</p>
+        <h3>看报告,重点看警告与未通过项</h3>
+        <p>总分 ≥85 优秀 / 70-84 通过 / 50-69 存在风险 / &lt;50 未达标。Claude 重点看 thinking signature 是否 100 分;OpenAI 看 usage 字段有没有 Claude / Gemini 残留。</p>
       </div>
     </li>
   </ol>
 </section>
-
-<section class="hub-note" aria-labelledby="evidence-level-title">
-  <h2 id="evidence-level-title">分数是风险评估，不是官方身份认证</h2>
-  <p>
-    Claude 报告会观察 thinking signature 的结构与响应特征，OpenAI / Gemini 主要评估行为与协议兼容性。
-    这些都是证据强度不同的风险信号，不等同于独立密码学验签或厂商背书。详见<a href="/faq">常见问题</a>。
-  </p>
-</section>
+<div class="home-app-leaderboard-cta">
+  <a class="home-detect-submit home-specular-button" href="/leaderboard" data-home-specular>
+    <span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">API 红黑榜</span>
+  </a>
+</div>
 {% endblock %}
+
+{% block footer %}{% endblock %}

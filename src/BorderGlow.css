@@ -1,0 +1,96 @@
+.border-glow {
+  --edge-proximity: 0;
+  --cursor-angle: 45deg;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  overflow: visible;
+  color: inherit;
+  background: var(--border-glow-background);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--border-glow-radius);
+  transform: translate3d(0, 0, 0.01px);
+}
+
+.border-glow::before,
+.border-glow > .border-glow-edge {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  content: '';
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: calc(
+    (var(--edge-proximity) - var(--border-glow-sensitivity)) /
+      (100 - var(--border-glow-sensitivity))
+  );
+  transition: opacity 250ms ease-out;
+}
+
+.border-glow:not(:hover)::before,
+.border-glow:not(:hover) > .border-glow-edge {
+  opacity: 0;
+  transition-duration: 500ms;
+}
+
+.border-glow::before {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--border-glow-background) 0 100%) padding-box,
+    linear-gradient(#ffffff 0 100%) border-box;
+  mask-image: conic-gradient(
+    from var(--cursor-angle) at center,
+    #000 calc(var(--border-glow-cone) * 1%),
+    transparent calc((var(--border-glow-cone) + 15) * 1%),
+    transparent calc((100 - var(--border-glow-cone) - 15) * 1%),
+    #000 calc((100 - var(--border-glow-cone)) * 1%)
+  );
+}
+
+.border-glow > .border-glow-edge {
+  inset: calc(var(--border-glow-padding) * -1);
+  z-index: 3;
+  mix-blend-mode: plus-lighter;
+  mask-image: conic-gradient(
+    from var(--cursor-angle) at center,
+    #000 2.5%,
+    transparent 10%,
+    transparent 90%,
+    #000 97.5%
+  );
+}
+
+.border-glow > .border-glow-edge::before {
+  position: absolute;
+  inset: var(--border-glow-padding);
+  content: '';
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 100%),
+    inset 0 0 3px rgb(255 255 255 / 72%),
+    inset 0 0 8px rgb(255 255 255 / 52%),
+    inset 0 0 18px rgb(255 255 255 / 34%),
+    inset 0 0 36px 2px rgb(255 255 255 / 18%),
+    0 0 3px rgb(255 255 255 / 72%),
+    0 0 8px rgb(255 255 255 / 52%),
+    0 0 18px rgb(255 255 255 / 34%),
+    0 0 36px 2px rgb(255 255 255 / 18%);
+}
+
+.border-glow-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .border-glow::before,
+  .border-glow > .border-glow-edge {
+    transition-duration: 0.01ms;
+  }
+}
