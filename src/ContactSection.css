@@ -1,0 +1,79 @@
+.home-contact {
+  margin-top: 80px;
+  scroll-margin-top: 96px;
+}
+
+.home-contact #contact-title {
+  scroll-margin-top: 96px;
+}
+
+.home-contact-intro {
+  max-width: 620px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'SF Pro Display', -apple-system, system-ui, sans-serif;
+  font-size: clamp(16px, 1.2vw, 17px);
+  line-height: 1.75;
+}
+
+.home-contact-intro p {
+  margin: 0;
+}
+
+.home-contact-qq-reveal {
+  width: 100%;
+  max-width: 270px;
+  margin-top: clamp(24px, 3vw, 36px);
+}
+
+.home-contact-qq-glow,
+.home-contact-qq {
+  width: 100%;
+}
+
+.home-contact-qq {
+  padding: 0;
+  border: 0;
+  border-radius: 28px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.home-contact-qr-frame {
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: #000;
+}
+
+.home-contact-qr-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 14px;
+}
+
+html[data-theme='light'] .home-contact-intro {
+  color: #505050;
+}
+
+html[data-theme='light'] .home-contact-qr-frame {
+  background: #fff;
+}
+
+html[data-theme='light'] .home-contact-qr-frame img {
+  filter: invert(1);
+}
+
+@media (max-width: 720px) {
+  .home-contact-qr-frame {
+    border-radius: 19px;
+  }
+}
+
+@media (max-width: 620px) {
+  .home-contact {
+    margin-top: 60px;
+  }
+}

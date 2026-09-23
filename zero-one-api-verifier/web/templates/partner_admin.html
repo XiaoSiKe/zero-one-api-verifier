@@ -1,0 +1,139 @@
+{% extends "partner_shell.html" %}
+{% block title %}{% if section == 'ads' %}广告管理{% elif section == 'visits' %}访客数据{% else %}站点管理{% endif %} | 零一运维后台{% endblock %}
+{% block page_heading %}{% if section == 'ads' %}广告管理{% elif section == 'visits' %}访客数据{% else %}站点管理{% endif %}{% endblock %}
+{% block page_subtitle %}{% if section == 'ads' %}管理广告位、横幅素材与投放时长。{% elif section == 'visits' %}观察真实访问趋势与检测量。{% else %}查看收录资料，处理待审核申请。{% endif %}{% endblock %}
+{% block body_class %}{% if section == 'visits' %} admin-visits-workspace{% endif %}{% endblock %}
+{% block main_class %}{% if section == 'visits' %} admin-visits-page{% endif %}{% endblock %}
+{% block header_actions %}{% if section == 'sites' %}<a class="partner-primary home-specular-button" data-home-specular href="/partner/admin/sites/new"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">添加站点</span></a>{% endif %}{% endblock %}
+{% block workspace_content %}
+{% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}
+{% if section == 'sites' %}
+  {% if reviewed %}<p class="partner-success" role="status">站点已收录。</p>{% endif %}
+  {% if request.query_params.get('added') == '1' %}<p class="partner-success" role="status">站点已添加并收录。</p>{% endif %}
+  <nav class="ops-site-tabs" aria-label="站点状态">
+    <a href="/partner/admin?section=sites&amp;status=approved"{% if site_status == 'approved' %} aria-current="page"{% endif %}>已收录站点 <span>{{ counts.approved }}</span></a>
+    <a href="/partner/admin?section=sites&amp;status=pending"{% if site_status == 'pending' %} aria-current="page"{% endif %}>待审核站点 <span>{{ counts.pending }}</span></a>
+  </nav>
+  <section class="partner-workspace-card partner-admin-list" aria-labelledby="admin-sites-title">
+    <div class="partner-admin-section-head"><div><h2 id="admin-sites-title">{% if site_status == 'approved' %}已收录站点{% else %}待审核站点{% endif %}</h2><p>共 {{ submissions|length }} 个站点</p></div></div>
+    {% if submissions %}
+    <ol class="ops-site-list">
+      {% for site in submissions %}
+      <li class="ops-site-row">
+        <span class="ops-site-index" aria-label="序号 {{ loop.index }}">{{ '%02d'|format(loop.index) }}</span>
+        <div class="ops-site-details">
+          <div class="ops-site-title"><strong>{{ site.name }}</strong><a href="{{ site.website_url or 'https://' ~ site.domain }}" target="_blank" rel="noopener noreferrer">访问官网 ↗</a></div>
+          <div class="ops-site-data"><span>域名 <b>{{ site.domain }}</b></span><span>官网 <b>{{ site.website_url or 'https://' ~ site.domain }}</b></span><span>站长 <b>{{ site.operator_name }}</b></span><span>来源 <b>{% if site.submission_source == 'admin' %}后台添加{% else %}站长申请{% endif %}</b></span><span>{% if site_status == 'approved' %}收录时间{% else %}申请时间{% endif %} <b>{{ site.approved_label if site_status == 'approved' else site.created_label }}</b></span></div>
+          {% if site.contact_method and site.contact_handle %}<p class="ops-site-contact">联系：{% if site.contact_method == 'qq' %}QQ{% else %}微信{% endif %} · {{ site.contact_handle }}</p>{% endif %}
+          {% if site.description %}<p class="ops-site-description">{{ site.description }}</p>{% endif %}
+        </div>
+        {% if site_status == 'pending' %}
+        <form method="post" action="/partner/admin/review" class="ops-site-review">
+          <input type="hidden" name="domain" value="{{ site.domain }}" />
+          <button class="partner-primary" type="submit" name="status" value="approved">通过收录</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}<p class="partner-empty">{% if site_status == 'approved' %}尚无已收录站点。可使用右上角“添加站点”。{% else %}当前没有待审核申请。{% endif %}</p>{% endif %}
+  </section>
+{% elif section == 'ads' %}
+  {% if request.query_params.get('updated') == '1' %}<p class="partner-success" role="status">广告位已更新。</p>{% endif %}
+  {% if request.query_params.get('duration') == '1' %}<p class="partner-success" role="status">投放时长已设置。</p>{% endif %}
+  {% if request.query_params.get('reset') == '1' %}<p class="partner-success" role="status">广告位已清空并保存。</p>{% endif %}
+  <nav class="ops-site-tabs ops-ad-tabs" aria-label="广告类型">
+    <a href="/partner/admin?section=ads&amp;ad_type=sponsor"{% if ad_type == 'sponsor' %} aria-current="page"{% endif %}>赞助</a>
+    <a href="/partner/admin?section=ads&amp;ad_type=recommended"{% if ad_type == 'recommended' %} aria-current="page"{% endif %}>推荐</a>
+  </nav>
+  <section class="partner-workspace-card" id="ad-slots" aria-labelledby="admin-slots-title">
+    <div class="partner-admin-section-head"><div><h2 id="admin-slots-title">{% if ad_type == 'sponsor' %}赞助广告位{% else %}推荐广告位{% endif %}</h2></div></div>
+    <div class="partner-admin-slot-grid">
+      {% for slot in slots %}
+      <article class="partner-admin-slot-card">
+        <div class="partner-admin-slot-top"><strong>{{ slot.code }}</strong><span>{{ slot.label }}</span></div>
+        <p class="ops-slot-site">{% if slot.domain %}{{ slot.site_name }} · {{ slot.domain }}{% else %}未绑定站点{% endif %}</p>
+        {% if slot.domain %}<p class="ops-slot-link">跳转：{{ slot.website_url or slot.target_url or 'https://' ~ slot.domain }}</p>{% endif %}
+        <div class="ops-banner-preview-row">
+          {% for number in (1, 2) %}
+          {% set filename = slot.banner_image if number == 1 else slot.banner_image_2 %}
+          <div class="ops-banner-preview">
+            {% if filename and slot.domain %}<img src="/partner/admin/ad-banner/{{ filename }}" alt="{{ slot.code }} 横幅 {{ number }} 预览" loading="lazy" />{% else %}<span>横幅 {{ number }}</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <form method="post" action="/partner/admin/ad-slot" enctype="multipart/form-data" class="ops-slot-form">
+          <input type="hidden" name="code" value="{{ slot.code }}" />
+          <input type="hidden" name="ad_type" value="{{ ad_type }}" />
+          <label for="slot-price-{{ slot.code }}">价格（元／月）</label>
+          <input id="slot-price-{{ slot.code }}" name="price_yuan" type="number" min="0" max="100000" step="1" placeholder="待定" value="{{ slot.price_yuan if slot.price_yuan is not none else '' }}" />
+          <label for="slot-domain-{{ slot.code }}">绑定站点</label>
+          <select id="slot-domain-{{ slot.code }}" name="domain"><option value="">未分配</option>{% for site in approved_sites %}<option value="{{ site.domain }}"{% if slot.domain == site.domain %} selected{% endif %}>{{ site.name }} · {{ site.domain }}</option>{% endfor %}</select>
+          <label for="slot-banner-{{ slot.code }}">横幅 1</label>
+          <input id="slot-banner-{{ slot.code }}" name="banner" type="file" accept="image/png,image/jpeg,image/webp" />
+          <label for="slot-banner-2-{{ slot.code }}">横幅 2</label>
+          <input id="slot-banner-2-{{ slot.code }}" name="banner_2" type="file" accept="image/png,image/jpeg,image/webp" />
+          <small>PNG / JPG / WebP，每张最大 2 MB。两张图每 2 秒切换。</small>
+          <button class="partner-secondary" type="submit">保存广告位</button>
+        </form>
+        <form method="post" action="/partner/admin/ad-duration" class="ops-duration-form">
+          <input type="hidden" name="code" value="{{ slot.code }}" />
+          <input type="hidden" name="ad_type" value="{{ ad_type }}" />
+          <div class="ops-duration-status">{% if slot.ends_at %}到期 {{ slot.ends_label }} · 剩余 {{ slot.remaining_days }} 天{% else %}未设置时长 · 持续展示{% endif %}</div>
+          <label for="slot-days-{{ slot.code }}">从现在起投放天数</label>
+          <div class="ops-duration-controls"><input id="slot-days-{{ slot.code }}" name="duration_days" type="number" min="1" max="365" value="30" {% if not slot.domain %}disabled{% endif %} /><button class="partner-secondary" type="submit" {% if not slot.domain %}disabled{% endif %}>设置时长</button></div>
+        </form>
+        <form method="post" action="/partner/admin/ad-reset" class="ops-reset-form">
+          <input type="hidden" name="code" value="{{ slot.code }}" />
+          <input type="hidden" name="ad_type" value="{{ ad_type }}" />
+          <button class="partner-secondary ops-reset-button" type="submit">清空重置</button>
+        </form>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+{% else %}
+  <section class="ops-stat-strip" aria-label="运维数据概览">
+    <div><span>近 7 天浏览</span><strong>{{ traffic.week_views }}</strong></div>
+    <div><span>近 7 天访客</span><strong>{{ traffic.week_visitors }}</strong></div>
+    <div><span>总检测次数</span><strong>{{ traffic.detection_total }}</strong></div>
+    <div><span>待审核申请</span><strong>{{ counts.pending }}</strong></div>
+    <div><span>已收录站点</span><strong>{{ counts.approved }}</strong></div>
+    <div><span>展示中广告位</span><strong>{{ active_slots }}</strong></div>
+  </section>
+  <div class="ops-dashboard-grid">
+    <section class="partner-workspace-card ops-trend-panel" aria-labelledby="ops-traffic-heading">
+      <div class="ops-panel-heading">
+        <div><h2 id="ops-traffic-heading">访问趋势</h2><p>{{ traffic.window_label }} · 按北京时间统计</p></div>
+        <div class="ops-chart-legend"><span>浏览量</span><span>独立访客</span></div>
+      </div>
+      <nav class="ops-range-tabs" aria-label="访问趋势时间范围">
+        {% for key, label, days in traffic.ranges %}<a href="/partner/admin?section=visits&amp;range={{ key }}"{% if traffic.range == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+      </nav>
+      <svg class="ops-line-chart" viewBox="0 0 672 176" preserveAspectRatio="none" role="img" aria-label="{{ traffic.window_label }}的浏览量与独立访客趋势">
+        <line x1="24" y1="36" x2="648" y2="36" /><line x1="24" y1="92" x2="648" y2="92" /><line x1="24" y1="148" x2="648" y2="148" />
+        <polyline class="ops-line-views" points="{{ traffic.views_points }}" />
+        <polyline class="ops-line-visitors" points="{{ traffic.visitors_points }}" />
+      </svg>
+      <div class="ops-chart-labels" style="grid-template-columns: repeat({{ traffic.days|length }}, minmax(0, 1fr))">{% for mark in traffic.axis %}<span style="grid-column: {{ mark.index + 1 }} / span {{ mark.span }}">{{ mark.label }}</span>{% endfor %}</div>
+      <table class="ops-sr-only"><caption>{{ traffic.window_label }}访问数据</caption><thead><tr><th>日期</th><th>浏览量</th><th>独立访客</th></tr></thead><tbody>{% for day in traffic.days %}<tr><td>{{ day.day }}</td><td>{{ day.views }}</td><td>{{ day.visitors }}</td></tr>{% endfor %}</tbody></table>
+    </section>
+    <section class="partner-workspace-card ops-detection-panel" aria-labelledby="ops-detection-heading">
+      <div class="ops-panel-heading">
+        <div><h2 id="ops-detection-heading">检测次数趋势</h2><p>{{ traffic.window_label }}共 {{ traffic.detection_window }} 次 · 累计 {{ traffic.detection_total }} 次</p></div>
+        <div class="ops-chart-legend"><span>检测次数</span></div>
+      </div>
+      <svg class="ops-line-chart" viewBox="0 0 672 176" preserveAspectRatio="none" role="img" aria-label="{{ traffic.window_label }}的检测次数趋势">
+        <line x1="24" y1="36" x2="648" y2="36" /><line x1="24" y1="92" x2="648" y2="92" /><line x1="24" y1="148" x2="648" y2="148" />
+        <polyline class="ops-line-detections" points="{{ traffic.detection_points }}" />
+      </svg>
+      <div class="ops-chart-labels" style="grid-template-columns: repeat({{ traffic.days|length }}, minmax(0, 1fr))">{% for mark in traffic.axis %}<span style="grid-column: {{ mark.index + 1 }} / span {{ mark.span }}">{{ mark.label }}</span>{% endfor %}</div>
+      <table class="ops-sr-only"><caption>{{ traffic.window_label }}检测数据</caption><thead><tr><th>日期</th><th>检测次数</th></tr></thead><tbody>{% for day in traffic.days %}<tr><td>{{ day.day }}</td><td>{{ day.detections }}</td></tr>{% endfor %}</tbody></table>
+    </section>
+  </div>
+  <section class="partner-workspace-card ops-top-pages-panel" aria-labelledby="ops-pages-heading">
+    <div class="ops-panel-heading"><div><h2 id="ops-pages-heading">访问最多的页面</h2><p>近 7 天页面浏览量</p></div></div>
+    {% if traffic.top_pages %}<ol class="ops-top-pages">{% for item in traffic.top_pages %}<li><span>{{ item.page }}</span><div><i style="width: {{ (item.views * 100 / traffic.top_page_max)|round|int }}%"></i></div><strong>{{ item.views }}</strong></li>{% endfor %}</ol>{% else %}<p class="partner-empty">访客统计刚启用，访问后会在这里显示页面分布。</p>{% endif %}
+  </section>
+{% endif %}
+{% endblock %}

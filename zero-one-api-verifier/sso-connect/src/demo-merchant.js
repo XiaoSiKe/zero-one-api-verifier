@@ -126,6 +126,7 @@ export function createDemoMerchant({ config, publicDir, viewsDir }) {
   app.disable('x-powered-by');
   app.use(express.json({ limit: '8kb' }));
   app.use(express.static(publicDir));
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
   app.set('views', viewsDir);
   app.set('view engine', 'ejs');
 

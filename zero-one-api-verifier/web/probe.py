@@ -494,6 +494,21 @@ async def probe_model_alive(
                 )
         else:
             return False, f"未知协议: {protocol}"
+        if protocol in {"openai", "gemini"}:
+            choices = _resp.get("choices") if isinstance(_resp, dict) else None
+            if not (
+                isinstance(choices, list)
+                and choices
+                and isinstance(choices[0], dict)
+                and isinstance(choices[0].get("message"), dict)
+            ):
+                return False, "探活响应缺少 Chat Completions 消息"
+        elif not (
+            isinstance(_resp, dict)
+            and _resp.get("type") == "message"
+            and isinstance(_resp.get("content"), list)
+        ):
+            return False, "探活响应缺少 Anthropic Messages 内容"
         return True, None
     except Exception as e:  # noqa: BLE001
         # The protocol clients raise their own *APIError types with a `body`

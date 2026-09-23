@@ -14,10 +14,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+COPY zero-one-api-verifier/pyproject.toml zero-one-api-verifier/README.md zero-one-api-verifier/LICENSE ./zero-one-api-verifier/
+COPY zero-one-api-verifier/src ./zero-one-api-verifier/src
 RUN python -m venv zero-one-api-verifier/.venv \
     && zero-one-api-verifier/.venv/bin/pip install --no-cache-dir -e "zero-one-api-verifier[web]"
 
-EXPOSE 5173
+COPY . .
+
+# 5173 = Vite 预览入口（会把 /leaderboard /partner 等代理到 verifier）
+# 8012 = FastAPI 服务端口
+EXPOSE 5173 8012
 
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

@@ -8,6 +8,9 @@ export default defineConfig({
   retries: 0,
   use: {
     headless: true,
+    // Local macOS can use an installed Chrome when the pinned Chromium
+    // download is unavailable. CI continues to use Playwright's browser.
+    channel: process.env.PLAYWRIGHT_CHROME_CHANNEL || undefined,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },

@@ -44,7 +44,7 @@
 - API Key 仅存在于当次任务内存中，不进入报告 Schema、任务文件或排行榜。
 - 报告持久化目录由 `VERIDROP_JOBS_DIR` 指定。
 - 心愿单文件由 `VERIDROP_WISHLIST_PATH` 指定。
-- Docker Compose 使用 `verifier-web-data` 命名卷保留上述运行数据。
+- Docker Compose 使用 `verifier-web-data` 命名卷保留上述运行数据，挂载点为容器的 `/app/zero-one-api-verifier/web_data`（由 `VERIDROP_WEB_DATA_DIR` 指定）。
 
 ## 设计和上游边界
 

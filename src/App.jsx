@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import EchoText from './EchoText';
 import SpecularButton from './SpecularButton';
 import ThreadsBackground from './ThreadsBackground';
+import ContactSection from './ContactSection';
+import BoardsSection from './BoardsSection';
 
 const PRODUCT_NAME = '零一智鉴 · API 真测雷达';
 const SLOGAN = '从零到一，让每一个接口有据可鉴！';
@@ -41,11 +43,46 @@ const SPECULAR_BUTTON_PROPS = {
   proximity: 250,
   autoAnimate: false,
 };
+let homeVisitSent = false;
 
 export default function App() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'dark');
+  const [partnerSession, setPartnerSession] = useState({ authenticated: false, home: '/partner/sites' });
   const headerRef = useRef(null);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = nextTheme;
+    document.documentElement.style.colorScheme = nextTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', nextTheme === 'dark' ? '#090909' : '#f6f6f3');
+    try { localStorage.setItem('zeroone_theme', nextTheme); } catch { /* Theme still works for this visit. */ }
+    setTheme(nextTheme);
+  };
+
+  const specularProps = theme === 'light'
+    ? { ...SPECULAR_BUTTON_PROPS, textColor: '#171717', lineColor: '#171717', baseColor: '#707070' }
+    : SPECULAR_BUTTON_PROPS;
+
+  useEffect(() => {
+    if (homeVisitSent) return;
+    homeVisitSent = true;
+    fetch('/api/visit', { method: 'POST', credentials: 'same-origin', keepalive: true })
+      .catch(() => { /* Analytics never blocks the public homepage. */ });
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/partner/session', { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
+      .then((response) => response.ok ? response.json() : { authenticated: false })
+      .then((session) => setPartnerSession({
+        authenticated: Boolean(session.authenticated),
+        home: session.home === '/partner/admin' ? '/partner/admin' : '/partner/sites',
+      }))
+      .catch(() => { /* The public homepage still works if the partner service is unavailable. */ });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     let frame = 0;
@@ -82,31 +119,42 @@ export default function App() {
     };
   }, [isNavOpen]);
 
-  const showTrustSection = () => {
-    const target = document.getElementById('trust-title');
-    if (!target) return;
+  const showSection = (id) => {
+    const heading = document.getElementById(id);
+    if (!heading) return;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    target.focus({ preventScroll: true });
-    setIsNavOpen(false);
+    heading.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    heading.focus({ preventScroll: true });
   };
+  const showBoardsSection = () => showSection('home-boards-title');
+  const showContactSection = () => showSection('contact-title');
+
+  useEffect(() => {
+    const goToContactHash = () => {
+      if (window.location.hash !== '#contact') return;
+      window.requestAnimationFrame(() => {
+        const heading = document.getElementById('contact-title');
+        if (!heading) return;
+        heading.scrollIntoView({ behavior: 'auto', block: 'start' });
+      });
+    };
+    goToContactHash();
+    window.addEventListener('hashchange', goToContactHash);
+    return () => window.removeEventListener('hashchange', goToContactHash);
+  }, []);
 
   return (
-    <div className="homepage">
+    <div className="homepage" id="top">
       <a className="skip-link" href="#hero-title">跳到主要内容</a>
 
       <ThreadsBackground />
 
       <header ref={headerRef} className={`site-header${isScrolled ? ' is-scrolled' : ''}`}>
-        <div className="brand">
+        <a className="brand" href="/" aria-label="零一智鉴首页">
           <div className="brand-logo" aria-hidden="true">
             <img src="/lingyi-logo.jpg" alt="" />
           </div>
-          <strong>
-            <span className="brand-name-full">{PRODUCT_NAME}</span>
-            <span className="brand-name-short">零一智鉴</span>
-          </strong>
-        </div>
+        </a>
 
         <button
           className="home-nav-toggle"
@@ -127,7 +175,7 @@ export default function App() {
           aria-label="主导航"
           onClick={() => setIsNavOpen(false)}
         >
-          <a href="#hero-title">首页</a>
+          <a href="#top">首页</a>
           <a href="/claude">Claude</a>
           <a href="/openai">OpenAI</a>
           <a href="/gemini">Gemini</a>
@@ -145,7 +193,34 @@ export default function App() {
             </svg>
             <span className="nav-github-label">GitHub 源码</span>
           </a>
-          <a className="nav-action" href={API_TEST_URL}>开始 API 真测</a>
+          <button
+            className="home-theme-toggle"
+            type="button"
+            aria-label={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
+            aria-pressed={theme === 'light'}
+            title={theme === 'dark' ? '切换为浅色模式' : '切换为深色模式'}
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3.5" />
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <path d="M20.7 14.3A8.5 8.5 0 0 1 9.7 3.3 8.5 8.5 0 1 0 20.7 14.3Z" />
+              </svg>
+            )}
+            <span className="home-theme-label">外观</span>
+          </button>
+          <a className="nav-action" href={API_TEST_URL}>开始</a>
+          <a
+            className="nav-action nav-partner"
+            href={partnerSession.authenticated ? partnerSession.home : '/partner/register'}
+            aria-label={partnerSession.authenticated ? '已登录，进入站长中心' : '注册站长账号'}
+          >
+            {partnerSession.authenticated ? '登录' : '注册'}
+          </a>
         </nav>
       </header>
 
@@ -154,8 +229,6 @@ export default function App() {
           className="hero-stage"
           style={{ width: '100%', height: '100dvh', position: 'relative' }}
         >
-          <div className="hero-vignette" aria-hidden="true" />
-
           <div className="hero-content">
             <p className="release-pill">
               <b>01</b>
@@ -166,6 +239,7 @@ export default function App() {
               <span className="echo-scale">
                 <EchoText
                   {...ECHO_TEXT_PROPS}
+                  color={theme === 'light' ? '#171717' : ECHO_TEXT_PROPS.color}
                   text={PRODUCT_NAME}
                 />
               </span>
@@ -175,6 +249,7 @@ export default function App() {
               <span className="echo-scale">
                 <EchoText
                   {...ECHO_TEXT_PROPS}
+                  color={theme === 'light' ? '#171717' : ECHO_TEXT_PROPS.color}
                   text={SLOGAN}
                 />
               </span>
@@ -202,99 +277,32 @@ export default function App() {
 
             <div className="hero-actions">
               <SpecularButton
-                {...SPECULAR_BUTTON_PROPS}
+                {...specularProps}
                 className="hero-button"
                 onClick={() => { window.location.href = API_TEST_URL; }}
               >
                 开始 API 真测
               </SpecularButton>
               <SpecularButton
-                {...SPECULAR_BUTTON_PROPS}
+                {...specularProps}
                 className="hero-button"
-                onClick={showTrustSection}
+                onClick={showBoardsSection}
               >
-                关于零一
+                赞助与靠谱榜单
+              </SpecularButton>
+              <SpecularButton
+                {...specularProps}
+                className="hero-button"
+                onClick={() => { window.location.href = '/partner/register'; }}
+              >
+                我是站长 · 申请收录
               </SpecularButton>
             </div>
           </div>
         </div>
 
         <div className="home-sections">
-          <section className="home-section home-trust-section" id="trust" aria-labelledby="trust-title">
-            <h2 className="home-flow-title" id="trust-title" tabIndex="-1">
-              100% 开源 · 评分算法可逐行审计
-            </h2>
-
-            <div className="home-trust-panel">
-              <p className="home-trust-intro">
-                零一智鉴的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。<br />
-                所以我们把所有评分逻辑、key 处理代码全部公开,任何人可以审计。这是闭源工具永远做不到的承诺。
-              </p>
-
-              <div className="home-trust-cards">
-                <article className="home-trust-card">
-                  <span className="home-card-index" aria-hidden="true">01</span>
-                  <h3>评分算法公开</h3>
-                  <p>12 项 detector 怎么打分、贝叶斯排名公式、tokenizer 校准 — 全在 GitHub,无黑盒。</p>
-                  <SpecularButton
-                    {...SPECULAR_BUTTON_PROPS}
-                    size="md"
-                    className="home-trust-button"
-                    onClick={() => window.open(
-                      'https://github.com/XiaoSiKe/zero-one-api-verifier/tree/main/zero-one-api-verifier/src/relay_detector',
-                      '_blank',
-                      'noopener,noreferrer',
-                    )}
-                  >
-                    查看检测器源码 →
-                  </SpecularButton>
-                </article>
-
-                <article className="home-trust-card">
-                  <span className="home-card-index" aria-hidden="true">02</span>
-                  <h3>API key 不落盘<br /><em>可代码证明</em></h3>
-                  <p>
-                    SECURITY.md 列出每条 key 处理承诺,每条都标了代码位置 — 你可以
-                    <code>grep</code> 验证。不是“我们说不偷”,是“代码不让偷”。
-                  </p>
-                  <SpecularButton
-                    {...SPECULAR_BUTTON_PROPS}
-                    size="md"
-                    className="home-trust-button"
-                    onClick={() => window.open(
-                      'https://github.com/XiaoSiKe/zero-one-api-verifier/blob/main/zero-one-api-verifier/SECURITY.md',
-                      '_blank',
-                      'noopener,noreferrer',
-                    )}
-                  >
-                    查看安全策略 →
-                  </SpecularButton>
-                </article>
-
-                <article className="home-trust-card">
-                  <span className="home-card-index" aria-hidden="true">03</span>
-                  <h3>支持完全自托管</h3>
-                  <p>
-                    不放心 SaaS?<code>git clone</code> 到自己机器跑,API key 永远不离开你的网络。
-                    AGPL-3.0-or-later 许可证保证 fork 出去的修改也必须开源。
-                  </p>
-                  <SpecularButton
-                    {...SPECULAR_BUTTON_PROPS}
-                    size="md"
-                    className="home-trust-button"
-                    onClick={() => window.open(
-                      'https://github.com/XiaoSiKe/zero-one-api-verifier#readme',
-                      '_blank',
-                      'noopener,noreferrer',
-                    )}
-                  >
-                    自托管指南 →
-                  </SpecularButton>
-                </article>
-              </div>
-            </div>
-          </section>
-
+          <BoardsSection specularProps={specularProps} onContact={showContactSection} />
           <section className="home-section home-how-section" aria-labelledby="how-title">
             <h2 className="home-flow-title" id="how-title">怎么用?三步 60 秒</h2>
             <ol className="home-how-steps">
@@ -318,7 +326,7 @@ export default function App() {
                   (500-2000 字符),中转站理论上无法伪造;Token 用量检查会额外识别 usage 虚报风险。
                 </p>
                 <SpecularButton
-                  {...SPECULAR_BUTTON_PROPS}
+                  {...specularProps}
                   size="md"
                   className="home-protocol-button"
                   onClick={() => { window.location.href = '/app/claude'; }}
@@ -338,7 +346,7 @@ export default function App() {
                   流式一致性。能识别中转站把 GPT 请求偷偷转给 Claude / Gemini 后端的「换芯」行为。
                 </p>
                 <SpecularButton
-                  {...SPECULAR_BUTTON_PROPS}
+                  {...specularProps}
                   size="md"
                   className="home-protocol-button"
                   onClick={() => { window.location.href = '/app/openai'; }}
@@ -358,7 +366,7 @@ export default function App() {
                   和 usage 字段。适配 Gemini 3 thinking-by-default 模型的特殊处理。
                 </p>
                 <SpecularButton
-                  {...SPECULAR_BUTTON_PROPS}
+                  {...specularProps}
                   size="md"
                   className="home-protocol-button"
                   onClick={() => { window.location.href = '/app/gemini'; }}
@@ -393,15 +401,91 @@ export default function App() {
             </ol>
           </section>
 
+          <section className="home-section home-trust-section" id="trust" aria-labelledby="trust-title">
+            <h2 className="home-flow-title" id="trust-title" tabIndex="-1">
+              100% 开源 · 评分算法可逐行审计
+            </h2>
+
+            <div className="home-trust-panel">
+              <p className="home-trust-intro">
+                零一智鉴的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。<br />
+                所以我们把所有评分逻辑、key 处理代码全部公开,任何人可以审计。这是闭源工具永远做不到的承诺。
+              </p>
+
+              <div className="home-trust-cards">
+                <article className="home-trust-card">
+                  <span className="home-card-index" aria-hidden="true">01</span>
+                  <h3>评分算法公开</h3>
+                  <p>12 项 detector 的判定条件与分值、贝叶斯排名的计算公式，以及 tokenizer 的校准逻辑和实现代码，都公开在 GitHub。你可以从单项证据追到最终评分，逐项复核报告结论，没有只给结果的黑盒。</p>
+                  <SpecularButton
+                    {...specularProps}
+                    size="md"
+                    className="home-trust-button"
+                    onClick={() => window.open(
+                      'https://github.com/XiaoSiKe/zero-one-api-verifier/tree/main/zero-one-api-verifier/src/relay_detector',
+                      '_blank',
+                      'noopener,noreferrer',
+                    )}
+                  >
+                    查看检测器源码 →
+                  </SpecularButton>
+                </article>
+
+                <article className="home-trust-card">
+                  <span className="home-card-index" aria-hidden="true">02</span>
+                  <h3>API key 不落盘</h3>
+                  <p>
+                    <span className="home-trust-proof">可代码证明</span><br />
+                    SECURITY.md 列出每条 key 处理承诺,每条都标了代码位置 — 你可以
+                    <code>grep</code> 验证。不是“我们说不偷”,是“代码不让偷”。
+                  </p>
+                  <SpecularButton
+                    {...specularProps}
+                    size="md"
+                    className="home-trust-button"
+                    onClick={() => window.open(
+                      'https://github.com/XiaoSiKe/zero-one-api-verifier/blob/main/zero-one-api-verifier/SECURITY.md',
+                      '_blank',
+                      'noopener,noreferrer',
+                    )}
+                  >
+                    查看安全策略 →
+                  </SpecularButton>
+                </article>
+
+                <article className="home-trust-card">
+                  <span className="home-card-index" aria-hidden="true">03</span>
+                  <h3>支持完全自托管</h3>
+                  <p>
+                    不放心 SaaS?<br /><code>git clone</code> 到自己机器跑,API key 永远不离开你的网络。
+                    AGPL-3.0-or-later 许可证保证 fork 出去的修改也必须开源。
+                  </p>
+                  <SpecularButton
+                    {...specularProps}
+                    size="md"
+                    className="home-trust-button"
+                    onClick={() => window.open(
+                      'https://github.com/XiaoSiKe/zero-one-api-verifier#readme',
+                      '_blank',
+                      'noopener,noreferrer',
+                    )}
+                  >
+                    自托管指南 →
+                  </SpecularButton>
+                </article>
+              </div>
+            </div>
+          </section>
+
           <section className="home-note" aria-labelledby="protocol-note-title">
             <h2 className="home-flow-title" id="protocol-note-title">不同协议的 100 分含义不同</h2>
             <p>
-              Claude 的 100 分包含<strong>加密级</strong> thinking signature 验证(Anthropic 服务端签名,中转站不可伪造);
-              OpenAI / Gemini 因为没有同等级的服务端签名机制,验证强度只到<strong>行为级 / 协议级</strong>。
+              Claude 的 100 分包含<strong>加密级</strong> thinking signature 验证(Anthropic 服务端签名,中转站不可伪造);<br />
+              OpenAI / Gemini 因为没有同等级的服务端签名机制,验证强度只到<strong>行为级 / 协议级</strong>。<br />
               每份报告页顶部都会明确标注本次检测属于哪一级,避免把协议兼容性误读成加密级真伪证明。
-              完整说明见 <a href="/app/faq">常见问题</a>。
             </p>
           </section>
+          <ContactSection />
         </div>
       </main>
 

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from .analytics import SHANGHAI
 from .paths import report_dirs
 
 REPORT_DIRS = report_dirs()
@@ -57,6 +58,11 @@ def is_valid_domain(s: str) -> bool:
     if not s or len(s) > 253 or "." not in s:
         return False
     return bool(_DOMAIN_RE.match(s))
+
+
+def is_public_domain(domain: str) -> bool:
+    """Honor the leaderboard exclusion list for reports and approved catalog entries."""
+    return is_valid_domain(domain) and domain not in _BLOCKED_DOMAINS
 
 
 @dataclass
@@ -148,12 +154,28 @@ class RelayStats:
         return " · ".join(labels)
 
     @property
+    def last_verdict(self) -> str:
+        """Verdict of the most recent detection across protocols.
+
+        Drives the 运行状态 module on the board so the status shown always
+        comes from a real report rather than a computed approximation.
+        """
+        newest: tuple[datetime, str] | None = None
+        for stats in self.by_protocol.values():
+            if stats.last_checked and stats.last_verdict and (newest is None or stats.last_checked > newest[0]):
+                newest = (stats.last_checked, stats.last_verdict)
+        return newest[1] if newest else ""
+
+    @property
     def verdict_class(self) -> str:
         """CSS class for color coding the score badge."""
         score = self.overall_median
-        if score >= 85: return "ok"
-        if score >= 70: return "good"
-        if score >= 50: return "warn"
+        if score >= 85:
+            return "ok"
+        if score >= 70:
+            return "good"
+        if score >= 50:
+            return "warn"
         return "fail"
 
 
@@ -277,9 +299,12 @@ class JobEntry:
 
     @property
     def badge_class(self) -> str:
-        if self.score >= 85: return "ok"
-        if self.score >= 70: return "good"
-        if self.score >= 50: return "warn"
+        if self.score >= 85:
+            return "ok"
+        if self.score >= 70:
+            return "good"
+        if self.score >= 50:
+            return "warn"
         return "fail"
 
 
@@ -372,3 +397,37 @@ def all_domains() -> list[str]:
     """Every domain that has at least one report — used to populate sitemap."""
     relays, _ = aggregate()
     return [r.domain for r in relays if r.domain]
+
+
+def detection_activity(since_day: str) -> tuple[int, dict[str, int]]:
+    """Lifetime detection total plus per-day counts since `since_day`.
+
+    One pass over the public report files feeds both the total-detection
+    figure and the daily trend, so the two can never disagree. Days are
+    bucketed in Beijing time to line up with the visit counters.
+    """
+    total = 0
+    by_day: Counter = Counter()
+    for dir_path in REPORT_DIRS:
+        if not dir_path.is_dir():
+            continue
+        for json_path in dir_path.glob("*.json"):
+            report = _load_report(json_path)
+            if not report:
+                continue
+            domain = _extract_domain(report.get("base_url", ""))
+            if not domain or domain in _BLOCKED_DOMAINS:
+                continue
+            total += 1
+            moment = _parse_timestamp(report.get("timestamp"))
+            if moment is None:
+                try:
+                    moment = datetime.fromtimestamp(json_path.stat().st_mtime, tz=timezone.utc)
+                except OSError:
+                    continue
+            if moment.tzinfo is None:
+                moment = moment.replace(tzinfo=timezone.utc)
+            day = moment.astimezone(SHANGHAI).date().isoformat()
+            if day >= since_day:
+                by_day[day] += 1
+    return total, dict(by_day)

@@ -1,0 +1,84 @@
+{% extends "partner_shell.html" %}
+{% block title %}我的站点 | 零一智鉴站长中心{% endblock %}
+{% block page_heading %}我的站点{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block header_actions %}<a class="partner-primary home-specular-button" data-home-specular href="/partner/sites/new"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">提交新站点</span></a>{% endblock %}
+{% block workspace_content %}
+<section class="partner-workspace-card" id="site-details" aria-labelledby="partner-sites-title">
+  <div class="partner-admin-section-head"><h2 id="partner-sites-title">站点资料</h2></div>
+  {% if submitted %}<p class="partner-success" role="status">申请已提交，当前状态为待审核。</p>{% endif %}
+  {% if sites %}
+  <ol class="ops-site-list">
+    {% for site in sites %}
+    <li class="ops-site-row">
+      <span class="ops-site-index" aria-label="序号 {{ loop.index }}">{{ '%02d'|format(loop.index) }}</span>
+      <div class="ops-site-details">
+        <div class="ops-site-title">
+          <strong>{{ site.name }}</strong>
+          <span class="partner-status partner-status-{{ site.status }}">{% if site.status == 'approved' %}已收录认证{% elif site.status == 'rejected' %}未通过{% else %}待审核{% endif %}</span>
+        </div>
+        <div class="ops-site-data">
+          <span>域名 <b>{{ site.domain }}</b></span>
+          <span>官网 <b>{{ site.website_url or 'https://' ~ site.domain }}</b></span>
+          <span>联系方式 <b>{% if site.contact_method and site.contact_handle %}{% if site.contact_method == 'qq' %}QQ{% else %}微信{% endif %} · {{ site.contact_handle }}{% else %}未填写{% endif %}</b></span>
+          <span>提交时间 <b>{{ site.created_label }}</b></span>
+          {% if site.approved_label %}<span>收录时间 <b>{{ site.approved_label }}</b></span>{% endif %}
+          <span>来源 <b>{% if site.submission_source == 'admin' %}后台添加{% else %}站长申请{% endif %}</b></span>
+        </div>
+        {% if site.description %}<p class="ops-site-description">{{ site.description }}</p>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}<div class="partner-zero-state"><a class="partner-secondary home-specular-button" data-home-specular href="/partner/sites/new"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">申请收录站点 →</span></a></div>{% endif %}
+</section>
+<section class="partner-workspace-card" id="ad-data" aria-labelledby="partner-ad-data-title">
+  <div class="partner-admin-section-head ops-ad-heading">
+    <div><h2 id="partner-ad-data-title">广告数据</h2><p>广告订阅状态与最近 30 天真实点击数据</p></div>
+  </div>
+  {% if ad_data.slots %}
+  <div class="ops-ad-stat-strip" aria-label="广告数据概览">
+    <div><span>近 30 天点击</span><strong>{{ ad_data.clicks }}</strong></div>
+    <div><span>独立访客</span><strong>{{ ad_data.visitors }}</strong></div>
+    <div><span>近 7 天点击</span><strong>{{ ad_data.week_clicks }}</strong></div>
+    <div><span>展示中广告位</span><strong>{{ ad_data.active_slots }}</strong></div>
+  </div>
+  <div class="ops-ad-layout">
+    <div class="ops-ad-trend" aria-labelledby="ops-ad-trend-title">
+      <div class="ops-ad-subhead"><div><h3 id="ops-ad-trend-title">点击趋势</h3><p>最近 30 天</p></div><span class="ops-ad-legend">点击次数</span></div>
+      <svg class="ops-line-chart ops-ad-line-chart" viewBox="0 0 672 176" preserveAspectRatio="none" role="img" aria-label="最近 30 天广告点击趋势">
+        <line x1="24" y1="36" x2="648" y2="36" /><line x1="24" y1="92" x2="648" y2="92" /><line x1="24" y1="148" x2="648" y2="148" />
+        <polyline class="ops-line-ad-clicks" points="{{ ad_data.click_points }}" />
+      </svg>
+      <div class="ops-chart-labels" style="grid-template-columns: repeat({{ ad_data.days|length }}, minmax(0, 1fr))">{% for mark in ad_data.axis %}<span style="grid-column: {{ mark.index + 1 }} / span {{ mark.span }}">{{ mark.label }}</span>{% endfor %}</div>
+      <table class="ops-sr-only"><caption>最近 30 天广告点击数据</caption><thead><tr><th>日期</th><th>点击次数</th><th>独立访客</th></tr></thead><tbody>{% for day in ad_data.days %}<tr><td>{{ day.day }}</td><td>{{ day.clicks }}</td><td>{{ day.visitors }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+    <div class="ops-ad-subscriptions" aria-labelledby="ops-ad-subscriptions-title">
+      <div class="ops-ad-subhead"><div><h3 id="ops-ad-subscriptions-title">广告订阅</h3><p>{{ ad_data.slots|length }} 个广告位</p></div></div>
+      <ul class="ops-slot-owner-list">
+        {% for slot in ad_data.slots %}
+        <li>
+          <div class="ops-slot-owner-main">
+            <strong>{{ slot.code }} · {{ slot.site_name }}</strong>
+            <span>{{ slot.domain }}</span>
+          </div>
+          <span class="ops-ad-slot-state{% if slot.active %} is-active{% endif %}">{% if slot.active %}展示中{% else %}已结束{% endif %}</span>
+          <div class="ops-slot-owner-expiry">
+            <span>到期时间</span>
+            <b>{% if slot.ends_at %}{{ slot.ends_label }}{% else %}持续展示{% endif %}</b>
+            <small>{% if slot.ends_at %}剩余 {{ slot.remaining_days }} 天{% else %}未设置投放时长{% endif %}</small>
+          </div>
+          <span class="ops-slot-owner-price">{% if slot.price_yuan is none %}价格待定{% else %}¥{{ slot.price_yuan }}/月{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% else %}
+  <div class="ops-ad-empty">
+    <strong>暂无广告订阅</strong>
+    <a class="partner-secondary home-specular-button" data-home-specular href="/partner/subscription"><span class="home-specular-fx" aria-hidden="true"></span><span class="home-specular-label">广告订阅</span></a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "partner_shell.html" %}
+{% block title %}提交收录 | 零一智鉴站长中心{% endblock %}
+{% block page_heading %}提交收录{% endblock %}
+{% block page_subtitle %}{% endblock %}
+{% block workspace_content %}
+<section class="partner-workspace-card partner-form-card" aria-labelledby="partner-submit-title">
+  <div class="partner-admin-section-head"><h2 id="partner-submit-title">站点资料</h2></div>
+  {% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/partner/sites" class="partner-form partner-form-stack">
+    <fieldset class="partner-form-group">
+      <legend>基本信息</legend>
+      <div class="partner-form-grid">
+        <div class="partner-field"><label for="site-name">站点名称 <span aria-hidden="true">*</span></label><input id="site-name" name="name" type="text" required minlength="2" maxlength="80" placeholder="站点或品牌名称" value="{{ name|default('', true) }}" /></div>
+        <div class="partner-field"><label for="site-domain">站点域名 <span aria-hidden="true">*</span></label><input id="site-domain" name="domain" type="text" required maxlength="253" placeholder="api.example.com" value="{{ domain|default('', true) }}" /></div>
+      </div>
+      <div class="partner-field"><label for="site-website">官网网址</label><input id="site-website" name="website_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com（留空则使用站点域名）" value="{{ website_url|default('', true) }}" /></div>
+    </fieldset>
+    <fieldset class="partner-form-group">
+      <legend>审核联系</legend>
+      <div class="partner-form-grid">
+        <fieldset class="partner-contact-method">
+          <legend>联系方式 <span aria-hidden="true">*</span></legend>
+          <div class="partner-contact-options">
+            <label><input type="radio" name="contact_method" value="qq" required {% if contact_method|default('', true) == 'qq' %}checked{% endif %} />QQ</label>
+            <label><input type="radio" name="contact_method" value="wechat" required {% if contact_method|default('', true) == 'wechat' %}checked{% endif %} />微信</label>
+          </div>
+        </fieldset>
+        <div class="partner-field"><label for="site-contact-handle">QQ 或 微信 <span aria-hidden="true">*</span></label><input id="site-contact-handle" name="contact_handle" type="text" required maxlength="80" autocomplete="off" placeholder="填写所选方式的账号" value="{{ contact_handle|default('', true) }}" /></div>
+      </div>
+    </fieldset>
+    <fieldset class="partner-form-group">
+      <legend>站点简介</legend>
+      <div class="partner-field"><label for="site-description">简介内容</label><textarea id="site-description" name="description" maxlength="500" rows="3" placeholder="简单介绍服务与支持的协议">{{ description|default('', true) }}</textarea></div>
+    </fieldset>
+    <div class="partner-actions"><button class="partner-primary" type="submit">提交审核</button><a class="partner-secondary" href="/partner/sites">取消</a></div>
+  </form>
+</section>
+{% endblock %}

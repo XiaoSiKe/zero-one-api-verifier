@@ -881,6 +881,11 @@
   if (!form) return;
   const submitBtn = document.getElementById('submit-btn');
   const errBox = document.getElementById('form-error');
+  const submitLabel = submitBtn.querySelector('.home-specular-label');
+  const setSubmitText = (text) => {
+    if (submitLabel) submitLabel.textContent = text;
+    else submitBtn.textContent = text;
+  };
 
   function endpointFor() {
     return form.getAttribute('data-endpoint')
@@ -971,7 +976,7 @@
     errBox.hidden = true;
     errBox.classList.remove('form-error-rich');
     submitBtn.disabled = true;
-    submitBtn.textContent = '正在确认模型可用…';
+    setSubmitText('正在确认模型可用…');
 
     const fd = new FormData(form);
     try {
@@ -982,7 +987,7 @@
         if (detail && detail.code === 'model_not_alive') {
           renderModelDeadError(detail);
           submitBtn.disabled = false;
-          submitBtn.textContent = '开始检测';
+          setSubmitText('开始检测');
           return;
         }
       }
@@ -1002,7 +1007,7 @@
       errBox.hidden = false;
       errBox.textContent = e.message || 'Submission failed';
       submitBtn.disabled = false;
-      submitBtn.textContent = '开始检测';
+      setSubmitText('开始检测');
     }
   });
 })();
