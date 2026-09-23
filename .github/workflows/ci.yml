@@ -141,9 +141,22 @@ jobs:
           PY
       - name: Prove online production backup is readable
         run: sudo python3 deploy/production/backup.py --data-dir "$VERIFIER_DATA_DIR" --backup-root "${RUNNER_TEMP}/zero-one-verifier-backups"
+      - name: Verify optional shared ingress reaches only the Web service
+        run: |
+          docker network create zero-one-api_gateway
+          docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" \
+            -f deploy/production/compose.yaml \
+            -f deploy/production/compose.edge.yaml up -d --no-build --wait
+          docker run --rm --network zero-one-api_gateway \
+            "zero-one-verifier-backend:${VERIFIER_REVISION}" \
+            python -c 'import urllib.request; assert urllib.request.urlopen("http://zero-one-verifier-web:8080/healthz", timeout=5).status == 200'
+          test "$(docker network inspect zero-one-api_gateway --format '{{range .Containers}}{{.Name}}{{println}}{{end}}' | grep -c '^zeroone-prod-ci-.*-web-1$')" = 1
+          ! docker network inspect zero-one-api_gateway --format '{{range .Containers}}{{.Name}}{{println}}{{end}}' | grep -q -- '-verifier-1$'
       - name: Show production stack logs on failure
         if: failure()
         run: docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml logs --tail 100
       - name: Stop only this CI stack
         if: always()
-        run: docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml down
+        run: |
+          docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml down
+          docker network rm zero-one-api_gateway 2>/dev/null || true
