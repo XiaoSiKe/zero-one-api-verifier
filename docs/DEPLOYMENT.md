@@ -88,7 +88,7 @@ DOCKER_BUILDKIT=0 docker compose up --build -d
 
 ## 独立生产部署（与零一中转站隔离）
 
-`deploy/production/` 是智鉴站的生产栈。它与现有零一中转站使用不同的 Compose project、容器网络、镜像和数据目录；不连接中转站的 PostgreSQL、Redis 或 `state/`，也不绑定服务器的 80/443。官网由静态 Caddy 容器提供，FastAPI 后端只在该栈的内部网络可见。唯一宿主入口默认是 `127.0.0.1:8180`。
+`deploy/production/` 是智鉴站的生产栈。它与现有零一中转站使用不同的 Compose project、镜像和数据目录；不连接中转站的 PostgreSQL、Redis 或 `state/`，也不绑定服务器的 80/443。官网由静态 Caddy 容器提供，FastAPI 后端只在该栈的私有网络可见。唯一宿主入口默认是 `127.0.0.1:8180`。
 
 生产机使用独立目录 `/srv/zero-one-verifier`，源码放在其中的 `source/`，持久化数据放在 `state/`。创建数据目录时将其交给容器用户 UID/GID `10001`，权限设为 `0700`。部署命令须在 `source/` 执行，并提供当前完整 Git SHA：
 
@@ -104,9 +104,13 @@ curl --fail http://127.0.0.1:8180/healthz
 
 独立备份命令为 `sudo python3 deploy/production/backup.py --data-dir /srv/zero-one-verifier/state --backup-root /srv/zero-one-verifier/backups`。脚本在线快照两个 SQLite 库、复制报告和横幅，并核对数据库完整性；`zero-one-verifier-backup.service` 与 `.timer` 可安排每日执行。备份目录仍在同一台服务器上，正式抗主机故障还需将备份加密复制到另一处存储。
 
-现有中转站已经占用 80/443。若要求完全不改其 Edge，可以为智鉴站单独创建 **Cloudflare Tunnel**，把 Cloudflare 上的公开主机名 `mix.01yapi.cc` 路由到同机 `http://127.0.0.1:8180`。`compose.tunnel.yaml` 只启动独立的 `cloudflared`，使用放在 Git 之外的 token 文件和固定 digest 镜像；不修改中转站的容器或防火墙入站规则。官方镜像以 UID/GID `65532` 运行，因此 token 文件须由该 UID 持有、权限设为 `0400`，其宿主目录由 root 持有、权限设为 `0700`。取得 token 后，将它安全写入 `VERIFIER_TUNNEL_TOKEN_FILE` 指向的服务器文件，运行 `docker compose -f deploy/production/compose.yaml -f deploy/production/compose.tunnel.yaml up -d tunnel`。Cloudflare [官方路由说明](https://developers.cloudflare.com/tunnel/concepts/routing/)指出，添加公开主机名时会在当前权威 DNS 中创建指向 Tunnel 的记录。
+现有中转站已经占用 80/443。同一公网 IP 上，智鉴站可通过现有 Edge 增加仅匹配 `mix.01yapi.cc` 的主机路由。可选的 `compose.edge.yaml` 只让智鉴站的静态 Web 容器加入 Edge 的网关网络；FastAPI、数据目录及其私有网络不共享。新增 Edge 路由属于零一中转站项目的受保护发布边界，须按该项目的同源双镜像发布和 Safe Edge switch 规则验收，不得在运行容器中临时改配置。
 
-截至 2026-09-23，`01yapi.cc` 的权威名称服务器是 Cloudflare；从生产机查询 `mix.01yapi.cc` 得到 NXDOMAIN。Spaceship 页面显示为“非活动”的记录不能作为已生效解析使用。Cloudflare 区域内还存在 `api.01yapi.cc` 的记录，**不要为修复智鉴站而切换整个域名的名称服务器**；应在当前权威 Cloudflare 区域创建本项目的独立 Tunnel 路由，并在公网确认 DNS、TLS、`/healthz`、检测页面和报告链路后才宣布上线。
+在 Edge 路由正式发布前，先用 `docker compose -f deploy/production/compose.yaml -f deploy/production/compose.edge.yaml up -d --no-build --wait` 为智鉴站 Web 容器启用网关别名 `zero-one-verifier-web`，并从网关网络验证 `http://zero-one-verifier-web:8080/healthz`。该操作不重建现有中转站容器。
+
+Cloudflare Tunnel 配置保留为另一种可选入口；只有当域名由相应 Cloudflare 区域管理且具备 Tunnel 权限时才能使用。官方镜像以 UID/GID `65532` 运行，token 文件由该 UID 持有、权限 `0400`，宿主目录由 root 持有、权限 `0700`。当前（2026-09-23）权威名称服务器已变为 Spaceship，`mix.01yapi.cc` 的 A 记录指向服务器，所以 Tunnel 不是当前发布路径。
+
+切换名称服务器前，`api.01yapi.cc` 在 Cloudflare 有 CNAME、MX 和 TXT 记录；切换后权威 DNS 不再返回这些记录。它与现有中转站的正式域名 `api.01yapi.com` 不同，但如仍有人使用 `.cc` 的该主机名，应单独核对并恢复需要的记录。智鉴站接入后须从公网确认 TLS、`/healthz`、页面和检测报告链路，才能宣布上线。
 
 ## 数据备份与恢复
 

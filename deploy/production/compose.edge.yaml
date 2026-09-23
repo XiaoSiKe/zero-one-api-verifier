@@ -1,0 +1,14 @@
+# Optional shared ingress only. The verifier backend and state stay on their
+# own Compose network; only the static Web proxy joins the existing gateway.
+services:
+  web:
+    networks:
+      default: {}
+      relay_gateway:
+        aliases:
+          - zero-one-verifier-web
+
+networks:
+  relay_gateway:
+    external: true
+    name: zero-one-api_gateway
