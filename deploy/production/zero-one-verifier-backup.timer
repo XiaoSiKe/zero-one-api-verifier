@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily independent Zero One Verifier backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=30min
+Persistent=true
+Unit=zero-one-verifier-backup.service
+
+[Install]
+WantedBy=timers.target

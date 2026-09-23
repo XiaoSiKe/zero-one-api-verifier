@@ -288,7 +288,7 @@ def _partner_form_is_same_origin(request: Request) -> bool:
     if not source:
         return False
     parsed = urlparse(source)
-    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
     return parsed.scheme == scheme and parsed.netloc == request.headers.get("host")
 
 

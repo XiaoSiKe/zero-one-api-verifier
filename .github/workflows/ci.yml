@@ -108,3 +108,42 @@ jobs:
       - name: Remove only this CI stack and volume
         if: always()
         run: docker compose -p "zeroone-ci-${GITHUB_RUN_ID}" down -v
+
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERIFIER_REVISION: ${{ github.sha }}
+      VERIFIER_DATA_DIR: /tmp/zero-one-verifier-state-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated data directory
+        run: sudo install -d -m 700 -o 10001 -g 10001 "$VERIFIER_DATA_DIR"
+      - name: Validate production Compose configuration
+        run: docker compose -f deploy/production/compose.yaml config --quiet
+      - name: Build and start production images locally
+        run: docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml up -d --build --wait --wait-timeout 180
+      - name: Exercise static site, backend and HTTPS proxy contract
+        run: python3 scripts/smoke_stack.py --base-url http://127.0.0.1:8180 --public-host mix.01yapi.cc
+      - name: Verify isolated database integrity
+        run: |
+          docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml exec -T verifier python - <<'PY'
+          import os
+          import sqlite3
+          from pathlib import Path
+          root = Path(os.environ['VERIDROP_WEB_DATA_DIR'])
+          assert Path('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc').is_file()
+          for filename, table in [('partners.sqlite3', 'site_submissions'), ('visits.sqlite3', 'pageviews')]:
+              with sqlite3.connect(root / filename) as db:
+                  assert db.execute('PRAGMA integrity_check').fetchone() == ('ok',)
+                  assert db.execute('PRAGMA foreign_key_check').fetchall() == []
+                  assert db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0] > 0
+          PY
+      - name: Prove online production backup is readable
+        run: sudo python3 deploy/production/backup.py --data-dir "$VERIFIER_DATA_DIR" --backup-root "${RUNNER_TEMP}/zero-one-verifier-backups"
+      - name: Show production stack logs on failure
+        if: failure()
+        run: docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml logs --tail 100
+      - name: Stop only this CI stack
+        if: always()
+        run: docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml down

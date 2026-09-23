@@ -1,0 +1,7 @@
+[Unit]
+Description=Back up independent Zero One Verifier data
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/python3 /srv/zero-one-verifier/source/deploy/production/backup.py --data-dir /srv/zero-one-verifier/state --backup-root /srv/zero-one-verifier/backups
