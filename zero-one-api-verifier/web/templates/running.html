@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}检测进行中 · 零一智鉴{% endblock %}
+{% block main_class %} running-page{% endblock %}
 
 {% block content %}
 <section class="card running-card" data-job-id="{{ job_id }}">
@@ -58,3 +59,4 @@
 })();
 </script>
 {% endblock %}
+{% block footer %}{% endblock %}

@@ -240,7 +240,7 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 - `POST /api/detect` 提交检测任务(异步)
 - `/faq` 常见问题(35+ 问答,含 JSON-LD 结构化数据)
 
-站长入口：`/partner/register` 使用用户名和密码直接注册，无邮箱字段或验证码；`/partner/sites` 提交域名后只进入待审核状态。账号和申请记录保存在 `VERIDROP_WEB_DATA_DIR/partners.sqlite3`（默认 `web_data/partners.sqlite3`），不会保存中转站 API key。旧版邮箱账号首次启动时会迁移为用户名账号并删除已存邮箱；若旧用户名重复，后续账号会追加 `-2` 等编号。管理员完成站点归属核对后，可在后台审核，或在服务器本地运行 `PYTHONPATH=src .venv/bin/python -m web.partner approved api.example.com`；拒绝使用 `rejected`。通过收录的站点即使暂无检测报告也会出现在“全部站点合集”，并标为“已收录认证／未检测”；有至少一份公开报告后可进入“认证综合榜”，单次样本仍明确标记。收录认证不改变检测分数或排序。
+站长入口：`/partner/register` 使用用户名和密码直接注册，无邮箱字段或验证码；`/partner/sites` 提交域名后只进入待审核状态。账号和申请记录保存在 `VERIDROP_WEB_DATA_DIR/partners.sqlite3`（默认 `web_data/partners.sqlite3`），不会保存中转站 API key。旧版邮箱账号首次启动时会迁移为用户名账号并删除已存邮箱；若旧用户名重复，后续账号会追加 `-2` 等编号。管理员完成站点归属核对后，可在后台审核，或在服务器本地运行 `PYTHONPATH=src .venv/bin/python -m web.partner approved api.example.com`；拒绝使用 `rejected`。通过收录的站点即使暂无检测报告也会出现在“全部站点合集”，并标为“已收录认证／未检测”；有至少一份公开报告后可进入“认证综合榜”。收录认证不改变检测分数或排序。
 
 管理员账号只能在服务器本地使用 `PYTHONPATH=src .venv/bin/python -m web.partner create-admin 管理员用户名` 创建；命令会输出一次随机初始密码，公开注册不会获得管理员角色。登录后进入 `/partner/admin?section=sites`，可切换“已收录站点 / 待审核站点”；待审站点可通过收录，管理员在 `/partner/admin/sites/new` 添加的站点则直接收录，记录收录时间。站点资料包含可选官网网址；广告位绑定站点后自动使用该网址，未填写时使用 `https://站点域名`。顶部“广告管理”进入 `/partner/admin?section=ads`，可修改 S1–S8/T1–T8 的价格、绑定站点、上传最多两张 PNG/JPG/WebP 横幅（处理成 WebP），两图每两秒交替显示；“设置时长”可设 1–365 天，到期自动停止公开展示。未设置时长的旧广告保持展示。审核撤回会自动解除该站点的广告位，横幅不再公开提供。`/api/ad-slots` 只公开广告展示所需字段，首页和红黑榜读取同一数据；站长联系方式、密码和审计记录不公开。管理员会话有效期为 8 小时，修改密码会使旧会话全部失效。
 

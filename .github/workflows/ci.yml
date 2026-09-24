@@ -160,3 +160,38 @@ jobs:
         run: |
           docker compose -p "zeroone-prod-ci-${GITHUB_RUN_ID}" -f deploy/production/compose.yaml down
           docker network rm zero-one-api_gateway 2>/dev/null || true
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [frontend, verifier, sso-connect, compose-smoke, production-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      deployments: write
+    environment: production
+    concurrency:
+      group: zero-one-verifier-production
+      cancel-in-progress: false
+    steps:
+      - name: Configure pinned SSH access
+        env:
+          DEPLOY_HOST: ${{ secrets.VERIFIER_DEPLOY_HOST }}
+          DEPLOY_KEY: ${{ secrets.VERIFIER_DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.VERIFIER_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          test -n "$DEPLOY_HOST"
+          test -n "$DEPLOY_KEY"
+          test -n "$DEPLOY_KNOWN_HOSTS"
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/zero-one-verifier-deploy"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/zero-one-verifier-deploy" "$HOME/.ssh/known_hosts"
+
+      - name: Deploy the tested main commit
+        env:
+          DEPLOY_HOST: ${{ secrets.VERIFIER_DEPLOY_HOST }}
+        run: |
+          ssh -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -i "$HOME/.ssh/zero-one-verifier-deploy" \
+            "root@$DEPLOY_HOST" "$GITHUB_SHA"

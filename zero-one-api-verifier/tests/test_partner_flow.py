@@ -358,9 +358,53 @@ async def test_certified_board_requires_review_and_report_evidence(tmp_path: Pat
         assert "精选展示 · T1" in all_sites.text
         assert "全部站点合集" in all_sites.text
         # 合集页不出现其它榜单的标题。
-        assert "🏆 认证综合榜" not in all_sites.text
-        assert "🏆 靠谱精选榜" not in all_sites.text
-        assert "🏆 认证综合榜" in (await client.get("/leaderboard?board=certified")).text
+        assert '<h2>认证综合榜</h2>' not in all_sites.text
+        assert '<h2>靠谱精选榜</h2>' not in all_sites.text
+        assert '<h2>认证综合榜</h2>' in (await client.get("/leaderboard?board=certified")).text
+
+        # A site holding both types shows both placements together on every board.
+        assert partner.update_ad_slot(admin_id, "S1", 299, "relay.example") is True
+        for board in ("featured", "certified", "all"):
+            response = await client.get(f"/leaderboard?board={board}")
+            card = response.text.split('id="relay.example"', 1)[1].split("</article>", 1)[0]
+            assert '<span class="lb-slot-badges">' in card
+            assert card.index("赞助置顶 · S1 首席赞助") < card.index("精选展示 · T1 Top 1 精选")
+            sponsor_slot = response.text.split('aria-label="赞助位 S1，', 1)[1].split('</a>', 1)[0]
+            assert sponsor_slot.index("赞助置顶 · S1") < sponsor_slot.index("精选展示 · T1")
+            assert "单次样本,仅供参考" not in response.text
+            assert "🏆" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_openai_result_and_running_pages_hide_requested_copy(monkeypatch):
+    running = server.jobs.Job(
+        id="preview-running", protocol="openai", status="running",
+        base_url="https://relay.example/v1", target_model="gpt-5", mode="full",
+    )
+    report = {
+        "protocol": "openai", "base_url": "https://relay.example/v1",
+        "target_model": "gpt-5", "mode": "full", "total_score": 82,
+        "verdict": "marginal", "results": [],
+        "tier_title": "行为/协议级验证", "tier_message": "原来的 OpenAI 提示文案",
+    }
+    completed = server.jobs.Job(id="preview-done", protocol="openai", status="done", report=report)
+
+    async def get_job(job_id):
+        return {running.id: running, completed.id: completed}.get(job_id)
+
+    monkeypatch.setattr(server.jobs, "get", get_job)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=server.app), base_url="http://testserver",
+    ) as client:
+        running_page = (await client.get("/r/preview-running")).text
+        assert 'class="container running-page"' in running_page
+        assert 'class="card running-card"' in running_page
+        assert 'class="site-footer"' not in running_page
+
+        result_page = (await client.get("/r/preview-done")).text
+        assert "行为/协议级验证" not in result_page
+        assert "原来的 OpenAI 提示文案" not in result_page
+        assert "检测结果" in result_page
 
 
 @pytest.mark.asyncio
@@ -428,7 +472,7 @@ async def test_admin_added_site_catalog_and_banner_flow(tmp_path: Path, monkeypa
         certified_with_report = await admin_client.get("/leaderboard?board=certified")
         assert "catalog.example" in certified_with_report.text
         assert "已收录认证" in certified_with_report.text
-        assert "单次样本" in certified_with_report.text
+        assert "单次样本" not in certified_with_report.text
 
         picture = io.BytesIO()
         Image.new("RGB", (600, 200), "#111827").save(picture, format="PNG")
