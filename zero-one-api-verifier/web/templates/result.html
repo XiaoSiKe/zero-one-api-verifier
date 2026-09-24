@@ -77,7 +77,7 @@
 </section>
 {% endif %}
 
-{% if report.tier_title or report.tier_message %}
+{% if protocol != 'openai' and (report.tier_title or report.tier_message) %}
 <section class="card alert-card">
   <strong>{{ report.tier_title or report.tier }}:</strong>
   {{ report.tier_message }}

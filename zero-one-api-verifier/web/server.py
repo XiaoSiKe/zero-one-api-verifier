@@ -223,8 +223,13 @@ async def leaderboard_page(
     board = board if board in _BOARD_CHOICES else "featured"
 
     slot_domains = partner.active_slot_domains()
-    slot_by_domain = {domain: code for code, domain in slot_domains.items()}
-    slot_order = {domain: index for index, domain in enumerate(slot_domains.values())}
+    slot_codes_by_domain = {}
+    for code, domain in slot_domains.items():
+        # Keep every active placement visible on each card, in S then T order.
+        slot_codes_by_domain.setdefault(domain, []).append(code)
+    slot_order = {}
+    for index, domain in enumerate(slot_domains.values()):
+        slot_order.setdefault(domain, index)
 
     if board == "featured":
         # 精选榜只呈现当前 T1–T8 展示位上的站点,顺序即展示位顺序。
@@ -271,7 +276,7 @@ async def leaderboard_page(
             "board_count": len(selected),
             "certified_domains": certified,
             "site_names": site_names,
-            "slot_by_domain": slot_by_domain,
+            "slot_codes_by_domain": slot_codes_by_domain,
             "slot_labels": partner.AD_SLOT_LABELS,
             "sponsor_slots": partner.public_ad_slots(),
             "protocol_labels": leaderboard.PROTOCOL_LABELS,

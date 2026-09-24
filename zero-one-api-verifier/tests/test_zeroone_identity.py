@@ -293,7 +293,7 @@ def test_leaderboard_actions_align_with_the_data_modules():
     css = _read(STATIC / "style.css")
     actions = css.split(".lb-actions {", 1)[1].split("}", 1)[0]
 
-    assert "flex-direction: row" in actions
+    assert "flex-direction: column" in actions
     assert "align-self: end" in actions
 
 
@@ -484,6 +484,8 @@ def test_critical_dom_hooks_and_form_endpoints_remain_available():
     assert '{% block footer %}{% endblock %}' in result
     assert 'id="status-headline"' in running
     assert 'id="run-error"' in running
+    assert '{% block main_class %} running-page{% endblock %}' in running
+    assert '{% block footer %}{% endblock %}' in running
 
 
 def test_probe_credentials_changes_cancel_stale_auth_failure_state():

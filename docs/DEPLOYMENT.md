@@ -102,6 +102,16 @@ curl --fail http://127.0.0.1:8180/healthz
 
 构建和运行版本都用该 SHA 标识。首次发布前先在隔离目录运行完整的 HTTP、SQLite 和报告恢复验收；线上目录不运行预览种子，也不运行会写入测试账号的 `scripts/smoke_stack.py`。后续回滚仅切换智鉴站的固定镜像版本，保留 `state/`，不执行 `down -v`。
 
+### GitHub 自动部署
+
+`CI` 工作流在 `main` 推送后的前端、Python、SSO 和两套 Compose 验收全部通过时，使用 `production` 环境自动触发部署。该环境只允许 `main` 分支，保存以下密钥：
+
+- `VERIFIER_DEPLOY_HOST`：生产服务器 SSH 主机。
+- `VERIFIER_DEPLOY_KEY`：仅用于智鉴站的 SSH 私钥。对应公钥在服务器上配置 `restrict,command="/usr/local/libexec/zero-one-verifier-deploy"`，不接受通用 Shell 命令。
+- `VERIFIER_DEPLOY_KNOWN_HOSTS`：已核对指纹的服务器 SSH host key，部署时强制校验。
+
+服务器上的 `/usr/local/libexec/zero-one-verifier-deploy` 安装自仓库的 `deploy/production/deploy_from_main.sh`。它仅接受当前远端 `main` 的完整提交 SHA，拒绝脏工作树；部署前执行在线备份，并在同一 Compose 项目里保留 Edge 网关连接。部署后检查本机和公网健康状态。新版本失败时，它会尝试用上一个提交的现有镜像恢复容器和源码；持久化 `state/` 不参与切换。工作流显示的提交 SHA 与生产镜像标签一致。
+
 独立备份命令为 `sudo python3 deploy/production/backup.py --data-dir /srv/zero-one-verifier/state --backup-root /srv/zero-one-verifier/backups`。脚本在线快照两个 SQLite 库、复制报告和横幅，并核对数据库完整性；`zero-one-verifier-backup.service` 与 `.timer` 可安排每日执行。备份目录仍在同一台服务器上，正式抗主机故障还需将备份加密复制到另一处存储。
 
 现有中转站已经占用 80/443。同一公网 IP 上，智鉴站可通过现有 Edge 增加仅匹配 `mix.01yapi.cc` 的主机路由。可选的 `compose.edge.yaml` 只让智鉴站的静态 Web 容器加入 Edge 的网关网络；FastAPI、数据目录及其私有网络不共享。新增 Edge 路由属于零一中转站项目的受保护发布边界，须按该项目的同源双镜像发布和 Safe Edge switch 规则验收，不得在运行容器中临时改配置。
