@@ -542,6 +542,86 @@ async def partner_submit_site(
     )
 
 
+def _managed_site_or_404(operator: dict, site_id: int) -> dict:
+    try:
+        return partner.site_for_management(operator["id"], site_id)
+    except partner.SiteNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+def _site_management_home(operator: dict, site: dict) -> str:
+    if operator["role"] == "admin":
+        status = "approved" if site["status"] == "approved" else "pending"
+        return f"/partner/admin?section=sites&status={status}"
+    return "/partner/sites"
+
+
+def _site_management_page(
+    request: Request, operator: dict, site: dict, *, deleting: bool = False, error: str = "",
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request, "partner_site_delete.html" if deleting else "partner_site_new.html",
+        {**site, "site": site, "operator": operator, "is_edit": True, "error": error,
+         "active": "admin_sites" if operator["role"] == "admin" else "sites",
+         "back_url": _site_management_home(operator, site)},
+        status_code=400 if error else 200,
+    )
+
+
+@app.get("/partner/sites/{site_id}/edit", response_class=HTMLResponse)
+@app.get("/partner/sites/{site_id}/delete", response_class=HTMLResponse)
+async def partner_manage_site_page(request: Request, site_id: int) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    site = _managed_site_or_404(operator, site_id)
+    return _site_management_page(request, operator, site, deleting=request.url.path.endswith("/delete"))
+
+
+@app.post("/partner/sites/{site_id}/edit", response_class=HTMLResponse)
+async def partner_edit_site(
+    request: Request, site_id: int, name: str = Form(""), domain: str = Form(""),
+    description: str = Form(""), contact_method: str = Form(""),
+    contact_handle: str = Form(""), website_url: str = Form(""),
+) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    site = _managed_site_or_404(operator, site_id)
+    try:
+        site["status"] = partner.update_site(
+            operator["id"], site_id, name, domain, description, contact_method, contact_handle, website_url,
+        )
+    except partner.SiteNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except partner.PartnerError as exc:
+        values = dict(site, name=name, domain=domain, description=description,
+                      contact_method=contact_method, contact_handle=contact_handle, website_url=website_url)
+        return _site_management_page(request, operator, values, error=str(exc))
+    home = _site_management_home(operator, site)
+    return RedirectResponse(home + ("&" if "?" in home else "?") + "updated=1", status_code=303)
+
+
+@app.post("/partner/sites/{site_id}/delete", response_class=HTMLResponse)
+async def partner_delete_site(request: Request, site_id: int, confirmed_domain: str = Form("")) -> Response:
+    operator = partner.operator_for_token(request.cookies.get(partner.SESSION_COOKIE))
+    if operator is None:
+        return RedirectResponse("/partner/login", status_code=303)
+    if not _partner_form_is_same_origin(request):
+        raise HTTPException(status_code=403, detail="跨站表单请求已拒绝")
+    site = _managed_site_or_404(operator, site_id)
+    try:
+        partner.delete_site(operator["id"], site_id, confirmed_domain)
+    except partner.SiteNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except partner.PartnerError as exc:
+        return _site_management_page(request, operator, site, deleting=True, error=str(exc))
+    home = _site_management_home(operator, site)
+    return RedirectResponse(home + ("&" if "?" in home else "?") + "deleted=1", status_code=303)
+
+
 _PARTNER_BUSINESS_PAGES = {
     "pricing": ("套餐报价", "了解站点收录、运营支持与展示合作。"),
     "subscription": ("广告订阅", "查看展示合作方式与当前订阅状态。"),

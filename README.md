@@ -124,6 +124,8 @@ npm run dev -- --host 127.0.0.1
 | `/partner/login` | 站长登录 |
 | `/partner/sites` | 我的站点：站点资料、审核进度与广告数据 |
 | `/partner/sites/new` | 提交站点收录申请 |
+| `/partner/sites/{id}/edit` | 编辑站点资料（站长仅限本人站点，管理员可管理全部站点） |
+| `/partner/sites/{id}/delete` | 确认并删除站点（同上，实际删除仅接受同源 POST） |
 | `/partner/pricing`、`/partner/subscription` | 合作方式与广告订阅（暂不提供在线购买） |
 | `/partner/featured`、`/partner/ads` | 展示合作说明与广告统计入口（无真实投放时不伪造数据） |
 | `/partner/account` | 账号信息与密码修改 |
@@ -131,6 +133,8 @@ npm run dev -- --host 127.0.0.1
 | `/partner/admin/sites/new` | 管理员添加站点，指定归属账号并直接收录 |
 | `/partner/admin?section=ads` | 广告位价格、站点绑定、双横幅与投放时长 |
 | `/partner/admin?section=visits` | 匿名访问趋势、站长申请与收录概览 |
+
+“我的站点”和后台站点列表均提供编辑、删除入口。编辑支持名称、域名、官网网址、简介和 QQ／微信联系信息，保留归属账号与申请来源；普通站长更换域名或官网网址后，站点重新进入待审核，关联广告位同步撤下。管理员修改保留原审核状态。删除需要在确认页勾选确认，并清空关联广告位的绑定、横幅展示和时长；广告位价格、历史点击和独立检测报告保留。历史报告仍可出现在按检测证据生成的榜单中，但不会再显示该站点的收录认证或广告展示。
 
 ## 测试
 

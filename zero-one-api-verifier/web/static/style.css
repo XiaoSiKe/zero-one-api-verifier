@@ -3519,6 +3519,15 @@ html[data-theme="light"] .partner-slot-code-t { border-color: #a5b4fc; backgroun
 .ops-site-data b { color: var(--partner-ink); font-weight: 650; overflow-wrap: anywhere; }
 .ops-site-contact, .ops-site-description { margin: 8px 0 0; color: var(--partner-muted); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .ops-site-review .partner-primary { min-height: 42px; padding: 9px 16px; border-radius: 10px; font-size: 13px; }
+.ops-site-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ops-site-actions .partner-secondary { min-height: 42px; padding: 9px 14px; }
+.partner-workspace .ops-site-delete { color: var(--status-fail-strong); border-color: var(--status-fail-border); }
+.partner-workspace .ops-site-delete:hover { color: var(--status-fail-strong); border-color: var(--status-fail-strong); background: var(--status-fail-soft); }
+.ops-site-confirm { display: flex; align-items: flex-start; gap: 10px; overflow-wrap: anywhere; }
+.partner-form .ops-site-confirm input { width: auto; flex-shrink: 0; margin-top: 4px; }
+@media (max-width: 720px) {
+  .ops-site-actions { grid-column: 2; }
+}
 
 .partner-admin-slot-card .ops-slot-site, .partner-admin-slot-card .ops-slot-link {
   min-height: 0; margin: 0; color: var(--partner-muted); font-size: 12px; line-height: 1.45;

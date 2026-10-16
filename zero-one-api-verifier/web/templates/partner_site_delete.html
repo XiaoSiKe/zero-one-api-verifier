@@ -1,0 +1,16 @@
+{% extends "partner_shell.html" %}
+{% block title %}删除站点 | 零一智鉴{% endblock %}
+{% block page_heading %}删除站点{% endblock %}
+{% block page_subtitle %}请确认要删除的站点及影响。{% endblock %}
+{% block workspace_content %}
+<section class="partner-workspace-card partner-form-card" aria-labelledby="site-delete-title">
+  <div class="partner-admin-section-head"><h2 id="site-delete-title">{{ site.name }}</h2></div>
+  <p class="ops-site-description">{{ site.domain }}</p>
+  <p>删除后，站点将从收录列表移除，关联广告位、横幅展示和投放时长会清空。历史检测报告保留。此操作无法撤销，如需再次收录，请重新提交。</p>
+  {% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/partner/sites/{{ site.id }}/delete" class="partner-form partner-form-stack">
+    <label class="ops-site-confirm"><input type="checkbox" name="confirmed_domain" value="{{ site.domain }}" required />我确认删除「{{ site.name }}」（{{ site.domain }}）</label>
+    <div class="partner-actions"><button class="partner-secondary ops-site-delete" type="submit">确认删除</button><a class="partner-secondary" href="{{ back_url }}">取消</a></div>
+  </form>
+</section>
+{% endblock %}

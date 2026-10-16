@@ -10,6 +10,8 @@
 {% if section == 'sites' %}
   {% if reviewed %}<p class="partner-success" role="status">站点已收录。</p>{% endif %}
   {% if request.query_params.get('added') == '1' %}<p class="partner-success" role="status">站点已添加并收录。</p>{% endif %}
+  {% if request.query_params.get('updated') == '1' %}<p class="partner-success" role="status">站点资料已保存。</p>{% endif %}
+  {% if request.query_params.get('deleted') == '1' %}<p class="partner-success" role="status">站点已删除，关联广告位已解除。</p>{% endif %}
   <nav class="ops-site-tabs" aria-label="站点状态">
     <a href="/partner/admin?section=sites&amp;status=approved"{% if site_status == 'approved' %} aria-current="page"{% endif %}>已收录站点 <span>{{ counts.approved }}</span></a>
     <a href="/partner/admin?section=sites&amp;status=pending"{% if site_status == 'pending' %} aria-current="page"{% endif %}>待审核站点 <span>{{ counts.pending }}</span></a>
@@ -27,12 +29,16 @@
           {% if site.contact_method and site.contact_handle %}<p class="ops-site-contact">联系：{% if site.contact_method == 'qq' %}QQ{% else %}微信{% endif %} · {{ site.contact_handle }}</p>{% endif %}
           {% if site.description %}<p class="ops-site-description">{{ site.description }}</p>{% endif %}
         </div>
+        <div class="ops-site-actions" role="group" aria-label="管理 {{ site.name }}">
+        <a class="partner-secondary" href="/partner/sites/{{ site.id }}/edit">编辑</a>
+        <a class="partner-secondary ops-site-delete" href="/partner/sites/{{ site.id }}/delete">删除</a>
         {% if site_status == 'pending' %}
         <form method="post" action="/partner/admin/review" class="ops-site-review">
           <input type="hidden" name="domain" value="{{ site.domain }}" />
           <button class="partner-primary" type="submit" name="status" value="approved">通过收录</button>
         </form>
         {% endif %}
+        </div>
       </li>
       {% endfor %}
     </ol>

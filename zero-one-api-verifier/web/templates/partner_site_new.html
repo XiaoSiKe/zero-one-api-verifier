@@ -1,12 +1,13 @@
 {% extends "partner_shell.html" %}
-{% block title %}提交收录 | 零一智鉴站长中心{% endblock %}
-{% block page_heading %}提交收录{% endblock %}
+{% block title %}{% if is_edit %}编辑站点{% else %}提交收录{% endif %} | 零一智鉴{% endblock %}
+{% block page_heading %}{% if is_edit %}编辑站点{% else %}提交收录{% endif %}{% endblock %}
 {% block page_subtitle %}{% endblock %}
 {% block workspace_content %}
 <section class="partner-workspace-card partner-form-card" aria-labelledby="partner-submit-title">
   <div class="partner-admin-section-head"><h2 id="partner-submit-title">站点资料</h2></div>
   {% if error %}<p class="partner-alert" role="alert">{{ error }}</p>{% endif %}
-  <form method="post" action="/partner/sites" class="partner-form partner-form-stack">
+  {% if is_edit and operator.role != 'admin' %}<p class="partner-form-hint">更换域名或官网网址后，站点将重新审核，关联广告位会撤下。修改其他资料不改变收录状态。</p>{% endif %}
+  <form method="post" action="{% if is_edit %}/partner/sites/{{ site.id }}/edit{% else %}/partner/sites{% endif %}" class="partner-form partner-form-stack">
     <fieldset class="partner-form-group">
       <legend>基本信息</legend>
       <div class="partner-form-grid">
@@ -32,7 +33,7 @@
       <legend>站点简介</legend>
       <div class="partner-field"><label for="site-description">简介内容</label><textarea id="site-description" name="description" maxlength="500" rows="3" placeholder="简单介绍服务与支持的协议">{{ description|default('', true) }}</textarea></div>
     </fieldset>
-    <div class="partner-actions"><button class="partner-primary" type="submit">提交审核</button><a class="partner-secondary" href="/partner/sites">取消</a></div>
+    <div class="partner-actions"><button class="partner-primary" type="submit">{% if is_edit %}保存修改{% else %}提交审核{% endif %}</button><a class="partner-secondary" href="{{ back_url|default('/partner/sites') }}">取消</a></div>
   </form>
 </section>
 {% endblock %}
