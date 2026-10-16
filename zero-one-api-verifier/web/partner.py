@@ -59,6 +59,10 @@ class PartnerError(ValueError):
     pass
 
 
+class SiteNotFound(PartnerError):
+    """A site is absent or outside the actor's management scope."""
+
+
 def _migrate_legacy_operators(conn: sqlite3.Connection) -> None:
     """Drop stored email addresses without changing operator IDs or FKs."""
     conn.execute("BEGIN IMMEDIATE")
@@ -494,10 +498,88 @@ def admin_add_site(
 def sites_for_operator(operator_id: int) -> list[dict]:
     with _db() as conn:
         rows = conn.execute(
-            "SELECT name, domain, description, contact_method, contact_handle, website_url, status, created_at, approved_at, submission_source FROM site_submissions WHERE operator_id = ? ORDER BY id DESC",
+            "SELECT id, name, domain, description, contact_method, contact_handle, website_url, status, created_at, approved_at, submission_source FROM site_submissions WHERE operator_id = ? ORDER BY id DESC",
             (operator_id,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def _managed_site(conn: sqlite3.Connection, actor_id: int, site_id: int) -> dict:
+    """One authorization rule for reading, editing and deleting site details."""
+    row = conn.execute(
+        """SELECT s.*, o.name AS actor_name, o.role AS actor_role
+           FROM site_submissions s JOIN operators o ON o.id = ?
+           WHERE s.id = ? AND (o.role = 'admin' OR s.operator_id = o.id)""",
+        (actor_id, site_id),
+    ).fetchone()
+    if row is None:
+        raise SiteNotFound("未找到站点，或你没有管理该站点的权限。")
+    return dict(row)
+
+
+def site_for_management(actor_id: int, site_id: int) -> dict:
+    with _db() as conn:
+        return _managed_site(conn, actor_id, site_id)
+
+
+def _detach_site_slots(conn: sqlite3.Connection, site_id: int) -> int:
+    """Withdraw a site's placements while preserving catalogue prices and clicks."""
+    return conn.execute(
+        """UPDATE ad_slots SET site_id = NULL, target_url = '', banner_image = '',
+           banner_image_2 = '', starts_at = NULL, ends_at = NULL, updated_at = ?
+           WHERE site_id = ?""",
+        (int(time.time()), site_id),
+    ).rowcount
+
+
+def update_site(
+    actor_id: int, site_id: int, name: str, domain: str, description: str,
+    contact_method: str, contact_handle: str, website_url: str = "",
+) -> str:
+    """Update permitted fields atomically; operator destination changes need review."""
+    with _db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        old = _managed_site(conn, actor_id, site_id)
+        values = _validated_site(name, domain, description, contact_method, contact_handle, website_url)
+        name, domain, description, contact_method, contact_handle, website_url = values
+        fields = ("name", "domain", "description", "contact_method", "contact_handle", "website_url")
+        changed = [field for field, value in zip(fields, values) if old[field] != value]
+        if not changed:
+            return old["status"]
+        destination_changed = domain != old["domain"] or website_url != (old["website_url"] or f"https://{old['domain']}")
+        needs_review = old["actor_role"] != "admin" and destination_changed
+        status = "pending" if needs_review else old["status"]
+        approved_at = old["approved_at"] if status == "approved" else None
+        try:
+            conn.execute(
+                """UPDATE site_submissions SET name = ?, domain = ?, description = ?,
+                   contact_method = ?, contact_handle = ?, website_url = ?, status = ?, approved_at = ?
+                   WHERE id = ?""",
+                (*values, status, approved_at, site_id),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise PartnerError("该域名已提交收录申请。") from exc
+        cleared = _detach_site_slots(conn, site_id) if needs_review else 0
+        _insert_event(
+            conn, "site_updated", actor_id=actor_id, actor_name=old["actor_name"], subject=domain,
+            detail=f"fields={','.join(changed)}; previous_domain={old['domain']}; status={status}; cleared_slots={cleared}",
+        )
+        return status
+
+
+def delete_site(actor_id: int, site_id: int, confirmed_domain: str) -> None:
+    """Delete only a confirmed, authorized listing, leaving reports and audit intact."""
+    with _db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        site = _managed_site(conn, actor_id, site_id)
+        if confirmed_domain != site["domain"]:
+            raise PartnerError("请确认要删除的站点；资料可能已更新，请刷新后重试。")
+        cleared = _detach_site_slots(conn, site_id)
+        conn.execute("DELETE FROM site_submissions WHERE id = ?", (site_id,))
+        _insert_event(
+            conn, "site_deleted", actor_id=actor_id, actor_name=site["actor_name"],
+            subject=site["domain"], detail=f"status={site['status']}; cleared_slots={cleared}",
+        )
 
 
 def all_site_submissions() -> list[dict]:

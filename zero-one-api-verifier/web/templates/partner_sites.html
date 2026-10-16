@@ -7,6 +7,8 @@
 <section class="partner-workspace-card" id="site-details" aria-labelledby="partner-sites-title">
   <div class="partner-admin-section-head"><h2 id="partner-sites-title">站点资料</h2></div>
   {% if submitted %}<p class="partner-success" role="status">申请已提交，当前状态为待审核。</p>{% endif %}
+  {% if request.query_params.get('updated') == '1' %}<p class="partner-success" role="status">站点资料已保存。如更换了域名或官网，请等待重新审核。</p>{% endif %}
+  {% if request.query_params.get('deleted') == '1' %}<p class="partner-success" role="status">站点已删除，关联广告位已解除。</p>{% endif %}
   {% if sites %}
   <ol class="ops-site-list">
     {% for site in sites %}
@@ -26,6 +28,10 @@
           <span>来源 <b>{% if site.submission_source == 'admin' %}后台添加{% else %}站长申请{% endif %}</b></span>
         </div>
         {% if site.description %}<p class="ops-site-description">{{ site.description }}</p>{% endif %}
+      </div>
+      <div class="ops-site-actions" role="group" aria-label="管理 {{ site.name }}">
+        <a class="partner-secondary" href="/partner/sites/{{ site.id }}/edit">编辑</a>
+        <a class="partner-secondary ops-site-delete" href="/partner/sites/{{ site.id }}/delete">删除</a>
       </div>
     </li>
     {% endfor %}
